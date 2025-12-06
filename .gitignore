@@ -1,0 +1,42 @@
+# =================================================================
+# ROOT LEVEL .gitignore
+# =================================================================
+
+# Security & Credentials
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!poetry.lock
+!pyproject.toml
+!eslint.config.mjs
+!next.config.ts
+!postcss.config.mjs
+
+# Environment files
+.env
+.env.*
+.venv
+venv/
+env/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+

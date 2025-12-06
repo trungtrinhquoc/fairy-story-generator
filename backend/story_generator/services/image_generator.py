@@ -18,6 +18,8 @@ from google.oauth2 import service_account
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 
+from story_generator.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,9 +35,9 @@ class ImageGenerator:
     
     def __init__(self):
         """Initialize Vertex AI."""
-        self.credentials_path = "story-generator-479404-ef2e8236954d.json"
-        self.project_id = "story-generator-479404"
-        self.location = "us-central1"
+        self.credentials_path = settings.credentials_path or settings.google_application_credentials or ""
+        self.project_id = settings.google_cloud_project or ""
+        self.location = settings.google_cloud_location
         self.model = None
         self.model_name = None
         
@@ -45,8 +47,8 @@ class ImageGenerator:
         """Initialize Vertex AI."""
         try:
             # Check credentials path
-            if not os.path.exists(self. credentials_path):
-                parent_path = os.path.join(". .", self.credentials_path)
+            if not os.path.exists(self.credentials_path):
+                parent_path = os.path.join("..", self.credentials_path)
                 if os.path.exists(parent_path):
                     self.credentials_path = parent_path
                 else:
@@ -55,7 +57,7 @@ class ImageGenerator:
             
             logger.info("🔄 Initializing Vertex AI...")
             
-            credentials = service_account.Credentials. from_service_account_file(self.credentials_path)
+            credentials = service_account.Credentials.from_service_account_file(self.credentials_path)
             vertexai.init(project=self.project_id, location=self.location, credentials=credentials)
             
             # Try models (FIXED: no spaces!)

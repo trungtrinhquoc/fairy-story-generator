@@ -30,9 +30,9 @@ class Settings(BaseSettings):
     gemini_api_key: str
     
     # Google Cloud / Vertex AI (NEW - CẦN CHO IMAGE GENERATION)
-    google_cloud_project: Optional[str] = "story-generator-479404"
+    google_cloud_project: Optional[str] = None
     google_cloud_location: str = "us-central1"
-    google_application_credentials: Optional[str] = "story-generator-479404-ef2e8236954d.json"
+    google_application_credentials: Optional[str] = None
     
     # =================================
     # APPLICATION SETTINGS
