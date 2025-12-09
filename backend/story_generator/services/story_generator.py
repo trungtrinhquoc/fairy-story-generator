@@ -111,7 +111,7 @@ class StoryGenerator:
                 response = self.model.generate_content([system_instruction, user_instruction])
 
                 # Parse response
-                story_data = self._parse_response(response. text)
+                story_data = self._parse_response(response.text)
                 
                 is_valid, error_msg = validate_story_response(story_data)
                 if not is_valid:

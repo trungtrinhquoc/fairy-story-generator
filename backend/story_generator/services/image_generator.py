@@ -99,7 +99,7 @@ class ImageGenerator:
             
         Returns:
             Image bytes (PNG) or placeholder if failed
-        """
+        """ 
         
         if not self.model:
             logger. error("❌ Model not ready")

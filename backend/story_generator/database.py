@@ -9,7 +9,7 @@ from story_generator. config import settings
 import logging
 import asyncio
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ class Database:
     # =================================
     # SCENES TABLE
     # =================================
-    
+    # Lưu hàng loạt cảnh (scenes) vào cơ sở dữ liệu cùng một lúc.
     async def create_scenes_bulk(self, scenes_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Bulk insert scenes and return created records."""
         try:
@@ -315,5 +315,144 @@ class Database:
             logger.error(f"⚠️ Error closing connections: {e}")
 
 
+    # =================================
+    # PROGRESS TRACKING FUNCTIONS
+    # Các functions để track progress của story generation
+    # =================================
+    async def update_story_progress(self, story_id: str, completed: int, total: int):
+        """
+        Cập nhật progress của story. 
+        
+        Args:
+            story_id: ID của story
+            completed: Số scenes đã hoàn thành
+            total: Tổng số scenes
+        """
+        response = await self.client.table("stories").update({
+            "scenes_completed": completed,
+            "scenes_total": total,
+            #"updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", story_id).execute()
+        
+        logger.info(f"✅ Story {story_id} progress: {completed}/{total}")
+        return response. data[0] if response.data else None
+
+
+    async def update_scene_status(
+        self, 
+        scene_id: str, 
+        status: str, 
+        error_message: str = None
+    ):
+        """
+        Cập nhật status của scene.
+        
+        Args:
+            scene_id: ID của scene
+            status: 'pending' | 'generating' | 'completed' | 'failed'
+            error_message: Lỗi nếu có
+        """
+        update_data = {
+            "status": status,
+            #"updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        if status == "generating":
+            update_data["started_at"] = datetime.now(timezone.utc).isoformat()
+        elif status == "completed":
+            update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
+        
+        if error_message:
+            update_data["error_message"] = error_message
+        
+        response = await self.client.table("scenes").update(
+            update_data
+        ).eq("id", scene_id).execute()
+        
+        logger.info(f"✅ Scene {scene_id} status: {status}")
+        return response.data[0] if response. data else None
+
+    
+    async def get_completed_scenes(self, story_id: str):
+        """
+        Lấy tất cả scenes đã hoàn thành. 
+        
+        Returns:
+            List các scenes có status='completed'
+        """
+        response = await self.client.table("scenes") \
+            .select("*") \
+            .eq("story_id", story_id) \
+            .eq("status", "completed") \
+            .order("scene_order") \
+            .execute()
+        
+        return response.data if response.data else []
+
+
+    async def get_scene_by_order(self, story_id: str, scene_order: int):
+        """
+        Lấy scene theo số thứ tự.
+        
+        Args:
+            story_id: ID của story
+            scene_order: Thứ tự scene (1-6)
+        """
+        response = await self.client.table("scenes") \
+            .select("*") \
+            .eq("story_id", story_id) \
+            .eq("scene_order", scene_order) \
+            .execute()
+        
+        return response. data[0] if response.data else None
+
+    
+    async def get_story_with_progress(self, story_id: str) -> Optional[dict]:
+        """
+        Lấy story KÈM THEO thông tin progress.
+        
+        TRẢ VỀ:
+        - Tất cả fields của story
+        - Thêm field "progress_percentage" (tính từ scenes_completed/scenes_total)
+        
+        DÙNG CHO:
+        - API 2: Cần trả về % để frontend hiển thị progress bar
+        
+        VÍ DỤ OUTPUT:
+        {
+            "id": "story-123",
+            "title": "Max và Rừng Phép Thuật",
+            "status": "generating",
+            "scenes_completed": 3,
+            "scenes_total": 6,
+            "progress_percentage": 50.0  ← Field này được TÍNH thêm
+        }
+        
+        Args:
+            story_id: ID của story
+        
+        Returns:
+            Story record + progress_percentage
+        """
+        try:
+            # Lấy story bình thường
+            story = await self.get_story(story_id)
+            
+            if not story:
+                return None
+            
+            # Tính progress percentage
+            completed = story. get("scenes_completed", 0)
+            total = story.get("scenes_total", 6)
+            percentage = (completed / total * 100) if total > 0 else 0
+            
+            # Thêm field mới vào story
+            story["progress_percentage"] = round(percentage, 1)
+            
+            return story
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get story with progress: {e}")
+            return None
 # Global database instance
 db = Database()

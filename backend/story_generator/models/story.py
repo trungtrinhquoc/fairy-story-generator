@@ -189,3 +189,203 @@ class StoryGenerationResponse(BaseModel):
     status: StoryStatus
     message: str
     estimated_time: int = Field(..., description="Estimated completion time in seconds")
+
+
+# ========================================
+# PROGRESS TRACKING MODELS (NEW)
+# Models cho progressive generation
+# ========================================
+class SceneStatus(str, Enum):
+    """
+    Enum cho trạng thái của scene. 
+    
+    GIẢI THÍCH:
+    - PENDING: Scene vừa tạo, chưa bắt đầu generate
+    - GENERATING: Đang generate image + audio
+    - COMPLETED: Đã xong (có image_url + audio_url)
+    - FAILED: Lỗi khi generate
+    """
+    PENDING = "pending"
+    GENERATING = "generating"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ProgressInfo(BaseModel):
+    """
+    Thông tin progress của story generation. 
+    
+    DÙNG ĐỂ:
+    - Hiển thị progress bar: "3/6 scenes (50%)"
+    - Estimate thời gian còn lại
+    
+    VÍ DỤ:
+    {
+        "completed": 3,
+        "total": 6,
+        "percentage": 50. 0
+    }
+    """
+    completed: int = Field(
+        description="Số scenes đã hoàn thành",
+        ge=0  # Greater or equal 0
+    )
+    total: int = Field(
+        description="Tổng số scenes",
+        ge=1  # Ít nhất 1 scene
+    )
+    percentage: float = Field(
+        description="Phần trăm hoàn thành (0-100)",
+        ge=0.0,
+        le=100.0
+    )
+
+
+class SceneWithStatus(SceneGenerated):
+    """
+    Scene model có thêm status field.
+    
+    KẾ THỪA TỪ SceneGenerated + THÊM:
+    - status: Trạng thái scene
+    - error_message: Lỗi nếu có
+    - started_at: Thời gian bắt đầu
+    - completed_at: Thời gian hoàn thành
+    
+    DÙNG CHO:
+    - API 2 response (cần biết scene đang ở trạng thái nào)
+    """
+    status: SceneStatus = Field(
+        default=SceneStatus.PENDING,
+        description="Trạng thái của scene"
+    )
+    error_message: Optional[str] = Field(
+        default=None,
+        description="Thông báo lỗi nếu status=failed"
+    )
+    started_at: Optional[datetime] = Field(
+        default=None,
+        description="Thời gian bắt đầu generate"
+    )
+    completed_at: Optional[datetime] = Field(
+        default=None,
+        description="Thời gian hoàn thành"
+    )
+    
+
+class StoryProgressResponse(BaseModel):
+    """
+    Response cho API 2: GET /stories/{id}/progress
+    
+    TRẢ VỀ:
+    - Thông tin story (id, title, status...)
+    - Progress info (completed/total, %)
+    - List các scenes ĐÃ HOÀN THÀNH
+    - Estimated time remaining
+    
+    FRONTEND DÙNG ĐỂ:
+    - Hiển thị progress bar
+    - Show scenes khi chúng sẵn sàng
+    - Biết khi nào dừng polling (status='completed')
+    
+    VÍ DỤ RESPONSE:
+    {
+        "story_id": "abc-123",
+        "title": "Max và Rừng Phép Thuật",
+        "status": "generating",
+        "progress": {
+            "completed": 3,
+            "total": 6,
+            "percentage": 50.0
+        },
+        "scenes": [
+            {scene_1},
+            {scene_2},
+            {scene_3}
+        ],
+        "estimated_time_remaining": 18
+    }
+    """
+    story_id: str = Field(description="ID của story")
+    
+    title: str = Field(description="Tiêu đề story")
+    
+    status: str = Field(
+        description="Trạng thái story: 'generating' | 'completed' | 'failed'"
+    )
+    
+    progress: ProgressInfo = Field(
+        description="Thông tin progress"
+    )
+    
+    scenes: List[SceneWithStatus] = Field(
+        default=[],
+        description="List các scenes đã hoàn thành (chỉ status='completed')"
+    )
+    
+    estimated_time_remaining: Optional[int] = Field(
+        default=None,
+        description="Thời gian còn lại ước tính (seconds)"
+    )
+    
+    error_message: Optional[str] = Field(
+        default=None,
+        description="Thông báo lỗi nếu story failed"
+    )
+
+
+class StoryGenerationStartResponse(BaseModel):
+    """
+    Response cho API 1: POST /generate (khi bắt đầu generation). 
+    
+    TRẢ VỀ:
+    - Story info
+    - Scene 1 (đã hoàn thành)
+    - Progress (1/6)
+    - Message hướng dẫn user poll API 2
+    
+    FRONTEND NHẬN ĐƯỢC:
+    - Hiển thị scene 1 ngay
+    - Bắt đầu polling API 2 để lấy scenes còn lại
+    
+    VÍ DỤ:
+    {
+        "story_id": "abc-123",
+        "title": "Max và Rừng Phép Thuật",
+        "status": "generating",
+        "progress": {
+            "completed": 1,
+            "total": 6,
+            "percentage": 16.7
+        },
+        "scenes": [{scene_1}],
+        "message": "Scene 1 hoàn thành.  Đang tạo scenes còn lại..."
+    }
+    """
+    story_id: str = Field(description="ID của story")
+    
+    title: str = Field(description="Tiêu đề story")
+    
+    status: str = Field(
+        default="generating",
+        description="Luôn là 'generating' khi mới bắt đầu"
+    )
+    
+    progress: ProgressInfo = Field(
+        description="Progress hiện tại (thường là 1/6)"
+    )
+    
+    scenes: List[SceneGenerated] = Field(
+        description="List scenes (chỉ có scene 1)"
+    )
+    
+    message: str = Field(
+        default="Scene đầu tiên đã hoàn thành. Đang tạo các scenes còn lại...",
+        description="Message cho user"
+    )
+    
+    poll_url: Optional[str] = Field(
+        default=None,
+        description="URL để poll progress (API 2)"
+    )
+    
+
