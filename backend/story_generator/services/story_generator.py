@@ -11,6 +11,7 @@ import logging
 import json
 from typing import Optional
 import google.generativeai as genai
+import asyncio
 
 from story_generator.config import settings
 from story_generator.prompts.story_prompts import (
@@ -41,7 +42,7 @@ class StoryGenerator:
         genai.configure(api_key=settings.gemini_api_key)
         
         self.model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
+            model_name="gemini-2.5-flash-lite",
             generation_config={
                 "temperature": 0.9,
                 "top_p": 0.95,
@@ -117,6 +118,7 @@ class StoryGenerator:
                 if not is_valid:
                     logger. warning(f"⚠️ Validation failed: {error_msg}")
                     if attempt < max_attempts:
+                        await asyncio.sleep(2)
                         continue
                     else:
                         raise ValueError(f"Validation failed: {error_msg}")
@@ -145,11 +147,20 @@ class StoryGenerator:
                 logger.error(f"❌ JSON parsing failed (attempt {attempt}): {e}")
                 if attempt == max_attempts:
                     raise Exception(f"Failed to parse Gemini response after {max_attempts} attempts")
+                await asyncio.sleep(2)
 
             except Exception as e:
                 logger.error(f"❌ Attempt {attempt} failed: {e}")
-                if attempt == max_attempts:
-                    raise
+                if attempt < max_attempts:
+                    # Tính thời gian chờ tăng dần: 5s, 10s.
+                    # Lỗi 429 cần chờ lâu hơn lỗi mạng bình thường.
+                    wait_time = 5 * attempt 
+                    
+                    logger.warning(f"⏳ Waiting {wait_time}s before retrying due to error...")
+                    await asyncio.sleep(wait_time) # 👈 Dòng này giúp Google reset quota cho bạn
+                else:
+                    # Hết lượt thử mới throw lỗi ra ngoài
+                    raise e
         
         raise Exception("Story generation failed after {max_attempts} attempts")
     
