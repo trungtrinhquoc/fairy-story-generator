@@ -1,9 +1,7 @@
-'use client';
-
 import { useState } from 'react';
 import { useStoryPolling } from './useStoryPolling';
 
-const API_BASE_URL = process.env. NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export function useStoryGeneration() {
   const [storyId, setStoryId] = useState<string | null>(null);
@@ -11,38 +9,47 @@ export function useStoryGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // ✅ Hook chỉ poll KHI có storyId
   const polling = useStoryPolling(storyId);
   
-  // ✅ Function (KHÔNG phải useEffect)
   const generateStory = async (request: any) => {
     try {
       setIsGenerating(true);
       setError(null);
       
-      console.log('📤 Calling API 1:  POST /generate');
+      console.log('📤 Calling API:  POST /api/v1/stories/generate');
+      console.log('   Request:', request);
       
-      // ✅ ĐÚNG URL
       const response = await fetch(`${API_BASE_URL}/api/v1/stories/generate`, {
         method: 'POST',
-        headers:  { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       });
       
-      if (! response.ok) {
+      if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to generate');
+        throw new Error(errorData.detail || 'Failed to generate story');
       }
       
       const result = await response.json();
       
-      console.log('✅ API 1 success:', result. story_id);
+      console.log('✅ API Response:', result);
+      console.log('   Story ID:', result.story_id);
+      console.log('   Title:', result. title);
+      console.log('   Scenes:', result.scenes?. length || 0);
       
-      // ✅ Set storyId → Trigger polling
+      if (! result.scenes || result.scenes.length === 0) {
+        console.error('❌ No scenes in response! ');
+        throw new Error('Scene 1 not returned from API');
+      }
+      
+      console.log('   Scene 1 image:', result.scenes[0]?.image_url);
+      console.log('   Scene 1 audio:', result.scenes[0]?. audio_url);
+      
       setStoryId(result.story_id);
       setTitle(result.title);
+      setIsGenerating(false);
       
-    } catch (err:  any) {
+    } catch (err: any) {
       console.error('❌ Generation error:', err);
       setError(err.message);
       setIsGenerating(false);
@@ -50,15 +57,15 @@ export function useStoryGeneration() {
   };
   
   const reset = () => {
-    console.log('🔄 Reset');
-    setStoryId(null);  // → Stop polling
+    console.log('🔄 Reset story generation');
+    setStoryId(null);
     setTitle(null);
     setIsGenerating(false);
     setError(null);
   };
   
   return {
-    generateStory,  // ← Function để component gọi
+    generateStory,
     storyId,
     title,
     scenes: polling.scenes,

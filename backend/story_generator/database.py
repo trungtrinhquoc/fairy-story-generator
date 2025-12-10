@@ -328,7 +328,7 @@ class Database:
             completed: Số scenes đã hoàn thành
             total: Tổng số scenes
         """
-        response = await self.client.table("stories").update({
+        response = self.client.table("stories").update({
             "scenes_completed": completed,
             "scenes_total": total,
             #"updated_at": datetime.now(timezone.utc).isoformat()
@@ -365,7 +365,7 @@ class Database:
         if error_message:
             update_data["error_message"] = error_message
         
-        response = await self.client.table("scenes").update(
+        response = self.client.table("scenes").update(
             update_data
         ).eq("id", scene_id).execute()
         
@@ -380,7 +380,7 @@ class Database:
         Returns:
             List các scenes có status='completed'
         """
-        response = await self.client.table("scenes") \
+        response = self.client.table("scenes") \
             .select("*") \
             .eq("story_id", story_id) \
             .eq("status", "completed") \
@@ -398,7 +398,7 @@ class Database:
             story_id: ID của story
             scene_order: Thứ tự scene (1-6)
         """
-        response = await self.client.table("scenes") \
+        response = self.client.table("scenes") \
             .select("*") \
             .eq("story_id", story_id) \
             .eq("scene_order", scene_order) \

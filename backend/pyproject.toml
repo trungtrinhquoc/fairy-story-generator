@@ -26,7 +26,6 @@ requests = "^2.32.3"
 aiohttp = "^3.11.0"
 
 # Audio
-edge-tts = "^7.0.0"
 pydub = "^0.25.1"
 
 # Data Validation
@@ -37,6 +36,7 @@ pydantic-settings = "^2.7.0"
 python-multipart = "^0.0.20"
 huggingface-hub = "^1.1.5"
 google-cloud-aiplatform = "^1.128.0"
+gtts = "^2.5.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

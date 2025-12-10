@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { storyApi } from '@/lib/api';
 import { StoryLength, StoryTone, Theme } from '@/types/story';
-import { Loader2, Sparkles, Upload } from 'lucide-react';
-// ← THÊM imports mới
+import { Loader2, Sparkles } from 'lucide-react';
 import { useStoryGeneration } from '@/hooks/useStoryGeneration';
 import ProgressBar from '@/components/ProgressBar';
 import ScenePlaceholder from '@/components/ScenePlaceholder';
@@ -14,7 +12,7 @@ function CreateStoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Input fields theo spec (GIỮ NGUYÊN)
+  // Form state
   const [childName, setChildName] = useState(searchParams.get('name') || '');
   const [childAge, setChildAge] = useState('');
   const [childGender, setChildGender] = useState<'boy' | 'girl' | 'other'>('boy');
@@ -25,7 +23,7 @@ function CreateStoryContent() {
   const [imageStyle, setImageStyle] = useState('Pixar 3D style');
   const [voice, setVoice] = useState('en-US-JennyNeural');
   
-  // ← THAY ĐỔI:  Dùng hook thay vì state cũ
+  // Story generation hook
   const {
     generateStory,
     storyId,
@@ -40,14 +38,14 @@ function CreateStoryContent() {
   
   const [error, setError] = useState('');
 
-  // Themes, styles, voices (GIỮ NGUYÊN)
-  const themes: { value: Theme; label: string; emoji: string }[] = [
+  // Theme options
+  const themes:  { value: Theme; label: string; emoji: string }[] = [
     { value: 'princess', label: 'Princess', emoji: '👸' },
     { value: 'dragon', label: 'Dragon', emoji: '🐉' },
     { value: 'forest', label: 'Forest', emoji: '🌲' },
     { value: 'ocean', label: 'Ocean', emoji: '🌊' },
     { value: 'space', label: 'Space', emoji: '🚀' },
-    { value:  'castle', label: 'Castle', emoji: '🏰' },
+    { value: 'castle', label: 'Castle', emoji: '🏰' },
   ];
 
   const imageStyles = [
@@ -63,78 +61,42 @@ function CreateStoryContent() {
     { value: 'en-US-AriaNeural', label: 'Child Voice', icon: '👧' },
   ];
 
-  // Generate summary message (GIỮ NGUYÊN)
-  const getSummary = () => {
-    if (!childName || !theme) return '';
-    
-    const ageText = childAge ? `, age ${childAge}` : '';
-    const themeLabel = themes.find(t => t.value === theme)?.label || theme;
-    const toneText = storyTone === 'gentle' ? 'bedtime' : storyTone;
-    
-    return `Let's make a ${toneText} story for ${childName}${ageText} about ${themeLabel. toLowerCase()}! `;
-  };
+  // Generate summary message
+  const summaryMessage = childName && childAge && prompt
+    ? `Let's make a ${storyTone} story for ${childName}, age ${childAge} about ${prompt}! `
+    : '';
 
-  // ← SỬA:  handleGenerate dùng hook mới
+  // Handle generate
   const handleGenerate = async () => {
-    if (!childName. trim()) {
-      setError("Please enter child's name");
-      return;
-    }
-    
-    if (!prompt.trim()) {
-      setError('Please enter a story idea');
+    if (!childName. trim() || !prompt.trim()) {
+      setError('Please enter child name and story idea');
       return;
     }
 
     setError('');
-
+    
     try {
-      // Gọi generateStory từ hook (sẽ tự động poll)
       await generateStory({
+        child_name: childName,
         prompt,
         story_length: storyLength,
         story_tone: storyTone,
         theme,
-        child_name: childName,
         image_style: imageStyle,
-        voice:  voice,
+        voice,
       });
-      
-      // KHÔNG redirect ngay - để user xem progress
-      // Khi completed, có thể redirect hoặc show button "View Full Story"
     } catch (err:  any) {
       setError(err.message || 'Failed to generate story');
     }
   };
 
-  // ← THÊM: Auto redirect khi completed (optional)
-  useEffect(() => {
-    if (status === 'completed' && storyId) {
-      // Có thể tự động redirect sau 2s
-      // setTimeout(() => router.push(`/story/${storyId}`), 2000);
-      
-      // Hoặc để user tự click button "View Story"
-    }
-  }, [status, storyId]);
-
-  // ← THÊM: Helper render placeholders
-  const renderPlaceholders = () => {
-    if (!progress) return null;
-    
-    const placeholders = [];
-    for (let i = scenes.length + 1; i <= progress.total; i++) {
-      placeholders. push(<ScenePlaceholder key={`placeholder-${i}`} sceneNumber={i} />);
-    }
-    return placeholders;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 py-12">
-      <div className="container mx-auto px-4 max-w-5xl">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-3xl shadow-2xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
               Create Your Fairy Tale ✨
             </h1>
             <p className="text-gray-600">
@@ -143,210 +105,248 @@ function CreateStoryContent() {
           </div>
 
           {/* Summary Message */}
-          {getSummary() && (
-            <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-8 text-center">
-              <p className="text-lg text-purple-800 font-medium">
-                {getSummary()}
+          {summaryMessage && ! storyId && (
+            <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
+              <p className="text-purple-700 font-medium text-center">
+                {summaryMessage}
               </p>
             </div>
           )}
 
-          {/* ← THÊM: Progress Section (chỉ show khi đang generate) */}
-          {isGenerating && (
-            <div className="mb-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200">
-              {/* Title */}
-              {title && (
-                <h2 className="text-2xl font-bold text-center mb-4 text-gray-800">
-                  📖 {title}
-                </h2>
-              )}
-              
-              {/* Progress Bar */}
-              {progress && (
-                <ProgressBar
-                  current={progress.completed}
-                  total={progress. total}
-                  message={`Creating magical scenes... `}
-                />
-              )}
-              
-              <p className="text-center text-sm text-gray-600 mt-3">
-                {status === 'generating' 
-                  ? `✨ Your story is being created...  (${scenes.length}/${progress?. total || 6} scenes ready)`
-                  : status === 'completed'
-                  ? '🎉 Story completed!'
-                  : 'Preparing your story...'}
-              </p>
-            </div>
-          )}
-
-          {/* ← THÊM: Scenes Preview (show khi có scenes) */}
-          {scenes. length > 0 && (
+          {/* ========================================
+              STORY DISPLAY SECTION
+              ======================================== */}
+          {storyId && (
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">
-                📚 Story Preview
-              </h3>
-              
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {scenes.map((scene) => (
-                  <div
-                    key={scene.id}
-                    className="border-2 border-purple-200 rounded-xl p-4 bg-white shadow-sm"
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                        {scene.scene_order}
-                      </div>
-                      <h4 className="font-semibold text-gray-800">Scene {scene.scene_order}</h4>
-                      <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                        ✅ Ready
-                      </span>
-                    </div>
-                    
-                    <img
-                      src={scene.image_url}
-                      alt={`Scene ${scene.scene_order}`}
-                      className="w-full aspect-video object-cover rounded-lg mb-3"
-                    />
-                    
-                    <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                      {scene.paragraph_text}
-                    </p>
-                    
-                    <audio src={scene.audio_url} controls className="w-full h-8" />
-                  </div>
-                ))}
+              {/* Story Title */}
+              <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-6 mb-6">
+                <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                  📖 {title || 'Your Story'}
+                </h2>
                 
-                {/* Placeholders */}
-                {renderPlaceholders()}
+                {/* Progress Bar */}
+                {status === 'generating' && progress && (
+                  <div className="mt-4">
+                    <ProgressBar 
+                      completed={progress.completed}
+                      total={progress.total}
+                      percentage={progress.percentage}
+                    />
+                    <p className="text-sm text-gray-600 mt-2 text-center">
+                      Creating scene {progress.completed}/{progress.total}... 
+                    </p>
+                  </div>
+                )}
+
+                {status === 'completed' && (
+                  <p className="text-green-600 font-medium mt-2">
+                    ✅ Story complete! All {progress?. total || 0} scenes ready. 
+                  </p>
+                )}
+              </div>
+
+              {/* Scenes Grid */}
+              <div className="space-y-6">
+                {scenes && scenes.length > 0 ? (
+                  scenes.map((scene) => (
+                    <div
+                      key={scene.id}
+                      className="bg-white border-2 border-purple-200 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow"
+                    >
+                      {/* Scene Header */}
+                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3">
+                        <h3 className="text-white font-bold text-lg">
+                          Scene {scene.scene_order}
+                        </h3>
+                      </div>
+
+                      {/* Scene Content */}
+                      <div className="p-6">
+                        <div className="grid md:grid-cols-2 gap-6">
+                          {/* Image */}
+                          <div className="relative">
+                            {scene.image_url ?  (
+                              <img
+                                src={scene.image_url}
+                                alt={`Scene ${scene.scene_order}`}
+                                className="w-full h-64 object-cover rounded-lg shadow-md"
+                              />
+                            ) : (
+                              <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Text & Audio */}
+                          <div className="flex flex-col justify-between">
+                            <p className="text-gray-700 leading-relaxed mb-4">
+                              {scene.paragraph_text}
+                            </p>
+
+                            {/* Audio Player */}
+                            {scene.audio_url && (
+                              <div className="mt-auto">
+                                <audio
+                                  controls
+                                  className="w-full"
+                                  src={scene.audio_url}
+                                >
+                                  Your browser does not support audio. 
+                                </audio>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-12 h-12 animate-spin text-purple-500 mx-auto mb-4" />
+                    <p className="text-gray-600">Preparing your first scene...</p>
+                  </div>
+                )}
+
+                {/* Placeholders for remaining scenes */}
+                {status === 'generating' && progress && scenes.length < progress.total && (
+                  Array.from({ length: progress.total - scenes.length }).map((_, i) => (
+                    <ScenePlaceholder key={`placeholder-${i}`} sceneNumber={scenes.length + i + 1} />
+                  ))
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-8 flex gap-4 justify-center">
+                {status === 'completed' && (
+                  <>
+                    <button
+                      onClick={() => router.push(`/story/${storyId}`)}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition"
+                    >
+                      📖 View Full Story
+                    </button>
+                    <button
+                      onClick={() => {
+                        reset();
+                        setChildName('');
+                        setChildAge('');
+                        setPrompt('');
+                        setError('');
+                      }}
+                      className="px-6 py-3 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition"
+                    >
+                      ✨ Create Another
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* ← THÊM: View Full Story Button (khi completed) */}
-          {status === 'completed' && storyId && (
-            <div className="mb-8 text-center">
-              <button
-                onClick={() => router.push(`/story/${storyId}`)}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-lg font-bold py-4 px-8 rounded-xl hover:from-green-600 hover:to-emerald-600 transition shadow-lg inline-flex items-center gap-2"
-              >
-                <Sparkles className="w-5 h-5" />
-                View Full Story
-              </button>
-              
-              <button
-                onClick={reset}
-                className="ml-4 bg-gray-200 text-gray-700 text-lg font-bold py-4 px-8 rounded-xl hover:bg-gray-300 transition"
-              >
-                Create Another Story
-              </button>
+          {/* ========================================
+              ERROR DISPLAY
+              ======================================== */}
+          {(error || generationError) && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
+              <p className="text-red-700 font-medium">
+                ⚠️ {error || generationError}
+              </p>
             </div>
           )}
 
-          {/* Form (GIỮ NGUYÊN - chỉ ẩn khi đang generate) */}
-          {!isGenerating && status === 'idle' && (
-            <div className="space-y-8">
-              {/* Section 1: Child Info */}
-              <div className="border-b pb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  👶 Child Information
-                </h2>
-                
-                <div className="grid md:grid-cols-3 gap-4">
-                  {/* Name */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Child's Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={childName}
-                      onChange={(e) => setChildName(e.target.value)}
-                      placeholder="Lily, Max, Emma..."
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring focus:ring-purple-200"
-                    />
-                  </div>
+          {/* ========================================
+              FORM (CHỈ HIỂN THỊ KHI CHƯA TẠO STORY)
+              ======================================== */}
+          {! storyId && (
+            <>
+              {/* Child Info Section */}
+              <div className="space-y-6 mb-8">
+                {/* Child Name */}
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    Child's Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={childName}
+                    onChange={(e) => setChildName(e.target.value)}
+                    placeholder="Enter your child's name"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus: border-purple-500 focus: outline-none"
+                  />
+                </div>
 
-                  {/* Age */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Age (Optional)
-                    </label>
-                    <input
-                      type="number"
-                      value={childAge}
-                      onChange={(e) => setChildAge(e.target.value)}
-                      placeholder="5"
-                      min="1"
-                      max="12"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus: border-purple-500 focus: ring focus:ring-purple-200"
-                    />
-                  </div>
+                {/* Child Age */}
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    Age (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={childAge}
+                    onChange={(e) => setChildAge(e.target.value)}
+                    placeholder="e.g., 7"
+                    min="3"
+                    max="12"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  />
                 </div>
 
                 {/* Gender */}
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Gender
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    Gender (Optional)
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['boy', 'girl', 'other'] as const).map((gender) => (
+                  <div className="flex gap-4">
+                    {['boy', 'girl', 'other'].map((g) => (
                       <button
-                        key={gender}
-                        onClick={() => setChildGender(gender)}
-                        className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
-                          childGender === gender
-                            ?  'border-purple-500 bg-purple-50 text-purple-700'
+                        key={g}
+                        type="button"
+                        onClick={() => setChildGender(g as any)}
+                        className={`px-6 py-2 rounded-lg border-2 transition ${
+                          childGender === g
+                            ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium'
                             : 'border-gray-300 hover:border-purple-300'
                         }`}
                       >
-                        {gender === 'boy' ?  '👦 Boy' : gender === 'girl' ? '👧 Girl' : '🧒 Other'}
+                        {g. charAt(0).toUpperCase() + g.slice(1)}
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
-
-              {/* Section 2: Story Details */}
-              <div className="border-b pb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  📖 Story Details
-                </h2>
 
                 {/* Story Idea */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
                     Story Idea *
                   </label>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="A brave little girl meets a friendly dragon in a magical forest..."
-                    rows={4}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus: border-purple-500 focus: ring focus:ring-purple-200"
+                    placeholder="What should the story be about?  (e.g., 'A brave adventure in the jungle')"
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Describe what happens in the story
-                  </p>
                 </div>
 
-                {/* Theme Selection */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Theme
+                {/* Theme */}
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    🎨 Theme
                   </label>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                     {themes.map((t) => (
                       <button
                         key={t.value}
+                        type="button"
                         onClick={() => setTheme(t.value)}
-                        className={`p-4 rounded-lg border-2 transition ${
+                        className={`p-3 rounded-lg border-2 transition text-center ${
                           theme === t.value
                             ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-300 hover:border-purple-300'
                         }`}
                       >
-                        <div className="text-3xl mb-1">{t. emoji}</div>
+                        <div className="text-3xl mb-1">{t.emoji}</div>
                         <div className="text-xs font-medium">{t.label}</div>
                       </button>
                     ))}
@@ -354,24 +354,27 @@ function CreateStoryContent() {
                 </div>
 
                 {/* Story Length */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Story Length
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    📏 Story Length
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['short', 'medium', 'long'] as StoryLength[]).map((length) => (
+                  <div className="flex gap-4">
+                    {['short', 'medium', 'long'].map((length) => (
                       <button
                         key={length}
-                        onClick={() => setStoryLength(length)}
-                        className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
+                        type="button"
+                        onClick={() => setStoryLength(length as StoryLength)}
+                        className={`flex-1 px-4 py-3 rounded-lg border-2 transition ${
                           storyLength === length
-                            ? 'border-purple-500 bg-purple-50 text-purple-700'
-                            : 'border-gray-300 hover:border-purple-300'
+                            ?  'border-purple-500 bg-purple-50 text-purple-700 font-medium'
+                            :  'border-gray-300 hover:border-purple-300'
                         }`}
                       >
                         {length. charAt(0).toUpperCase() + length.slice(1)}
-                        <div className="text-xs text-gray-500 mt-1">
-                          {length === 'short' ? '5-6 scenes' : length === 'medium' ? '8-10 scenes' : '12-14 scenes'}
+                        <div className="text-xs text-gray-500">
+                          {length === 'short' && '6 scenes'}
+                          {length === 'medium' && '10 scenes'}
+                          {length === 'long' && '14 scenes'}
                         </div>
                       </button>
                     ))}
@@ -380,92 +383,90 @@ function CreateStoryContent() {
 
                 {/* Story Tone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Story Tone
+                  <label className="block text-gray-700 font-medium mb-2">
+                    🎭 Story Tone
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['funny', 'adventurous', 'gentle'] as StoryTone[]).map((tone) => (
+                  <div className="flex gap-4">
+                    {['gentle', 'funny', 'adventurous']. map((tone) => (
                       <button
                         key={tone}
-                        onClick={() => setStoryTone(tone)}
-                        className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
+                        type="button"
+                        onClick={() => setStoryTone(tone as StoryTone)}
+                        className={`flex-1 px-4 py-3 rounded-lg border-2 transition ${
                           storyTone === tone
-                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium'
                             : 'border-gray-300 hover:border-purple-300'
                         }`}
                       >
-                        {tone === 'funny' ? '😄 Funny' : tone === 'adventurous' ? '⚔️ Adventurous' :  '🌙 Gentle Bedtime'}
+                        {tone.charAt(0).toUpperCase() + tone.slice(1)}
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
-
-              {/* Section 3: Style Options */}
-              <div className="border-b pb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  🎨 Style Options
-                </h2>
 
                 {/* Image Style */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Image Style
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">
+                    🎨 Image Style
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {imageStyles.map((style) => (
+                    {imageStyles. map((style) => (
                       <button
                         key={style. value}
+                        type="button"
                         onClick={() => setImageStyle(style.value)}
-                        className={`p-4 rounded-lg border-2 transition ${
-                          imageStyle === style. value
+                        className={`p-3 rounded-lg border-2 transition ${
+                          imageStyle === style.value
                             ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-300 hover:border-purple-300'
                         }`}
                       >
-                        <div className="text-3xl mb-1">{style.emoji}</div>
-                        <div className="text-xs font-medium">{style. label}</div>
+                        <div className="text-2xl mb-1">{style. emoji}</div>
+                        <div className="text-xs font-medium">{style.label}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Voice Selection */}
+                {/* Narrator Voice */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Narrator Voice
+                  <label className="block text-gray-700 font-medium mb-2">
+                    🎤 Narrator Voice
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     {voices.map((v) => (
                       <button
                         key={v.value}
+                        type="button"
                         onClick={() => setVoice(v.value)}
-                        className={`px-4 py-3 rounded-lg border-2 transition flex items-center gap-2 ${
-                          voice === v. value
-                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        className={`p-3 rounded-lg border-2 transition ${
+                          voice === v.value
+                            ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-300 hover:border-purple-300'
                         }`}
                       >
-                        <span className="text-2xl">{v.icon}</span>
-                        <span className="text-sm font-medium">{v. label}</span>
+                        <div className="text-2xl mb-1">{v. icon}</div>
+                        <div className="text-xs font-medium">{v.label}</div>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Error */}
-              {(error || generationError) && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                  {error || generationError}
-                </div>
-              )}
-
               {/* Generate Button */}
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold py-5 rounded-xl hover: from-purple-700 hover: to-pink-700 disabled: opacity-50 disabled:cursor-not-allowed transition shadow-lg flex items-center justify-center gap-2"
+                disabled={isGenerating || !childName.trim() || !prompt.trim()}
+                className={`
+                  w-full text-xl font-bold py-5 rounded-xl 
+                  transition-all duration-300 shadow-lg 
+                  flex items-center justify-center gap-2
+                  ${
+                    isGenerating || !childName.trim() || !prompt.trim()
+                      ?  'bg-gray-400 text-gray-200 cursor-not-allowed opacity-70'
+                      : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-[1.02] hover:shadow-xl cursor-pointer'
+                  }
+                `}
               >
                 {isGenerating ? (
                   <>
@@ -480,10 +481,10 @@ function CreateStoryContent() {
                 )}
               </button>
 
-              <p className="text-center text-sm text-gray-500">
-                First scene ready in ~15 seconds • Full story in 30-60 seconds • Age 4-10 recommended
+              <p className="text-center text-sm text-gray-500 mt-4">
+                ✨ First scene ready in ~15 seconds • Full story in 30-60 seconds
               </p>
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -491,9 +492,9 @@ function CreateStoryContent() {
   );
 }
 
-export default function CreateStory() {
+export default function CreatePage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-purple-500" /></div>}>
       <CreateStoryContent />
     </Suspense>
   );
