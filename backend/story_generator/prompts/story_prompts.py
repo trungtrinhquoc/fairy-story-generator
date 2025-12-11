@@ -47,9 +47,9 @@ EXAMPLE:
   "scenes": [
     {
       "scene_number": 1,
-      "text": "Little Timmy discovered a mysterious glowing door hidden behind the old oak tree.",
+      "text": "Little Timmy discovered a mysterious glowing door hidden behind the old oak tree. The heavy wood shimmered with soft, magical light. Timmy pushed the door open, feeling a rush of wonder and excitement. Beyond the door was a path leading deeper into the garden. He stepped onto the path, knowing a great adventure had just begun.",
       "image_prompt": "A 5-year-old boy with short brown hair, wearing blue overalls, yellow t-shirt, red sneakers, curious brown eyes, excitedly pointing at a sparkling wooden door, in a magical garden with giant colorful flowers, glowing butterflies, rainbow waterfalls, golden sunbeams, floating fairy lanterns, standing near an ancient oak tree with a glowing door in its trunk",
-      "sentence_count": 6
+      "sentence_count": 5
     }
   ]
 }
