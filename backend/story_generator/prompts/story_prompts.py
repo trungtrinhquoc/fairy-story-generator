@@ -16,7 +16,7 @@ SYSTEM_PROMPT = """You are an expert FAIRY TALE story writer for children aged 4
 
 Your stories should be:
 - Magical and enchanting with clear beginning, middle, and end
-- Written in simple, engaging language (20-30 words per scene)
+- Written in simple, engaging language (5-7 sentences per scene)
 - Safe, positive, and age-appropriate
 - Rich in visual descriptions for image generation
 
@@ -28,9 +28,9 @@ OUTPUT FORMAT (JSON):
   "scenes": [
     {
       "scene_number": 1,
-      "text": "Scene narrative text here (20-30 words)",
+      "text": "Scene narrative text here (5-7 sentences)",
       "image_prompt": "[EXACT CHARACTER DESIGN], [specific action/emotion for this scene], [EXACT BACKGROUND DESIGN with scene-specific location detail]",
-      "word_count": 25
+      "sentence_count": 6
     }
   ]
 }
@@ -49,7 +49,7 @@ EXAMPLE:
       "scene_number": 1,
       "text": "Little Timmy discovered a mysterious glowing door hidden behind the old oak tree.",
       "image_prompt": "A 5-year-old boy with short brown hair, wearing blue overalls, yellow t-shirt, red sneakers, curious brown eyes, excitedly pointing at a sparkling wooden door, in a magical garden with giant colorful flowers, glowing butterflies, rainbow waterfalls, golden sunbeams, floating fairy lanterns, standing near an ancient oak tree with a glowing door in its trunk",
-      "word_count": 16
+      "sentence_count": 6
     }
   ]
 }
@@ -92,7 +92,7 @@ def create_user_prompt(
         prompt += f"**Theme:** {theme}\n"
     
     prompt += f"**Number of scenes:** {num_scenes}\n"
-    prompt += f"**Words per scene:** 20-30\n"
+    prompt += f"**Sentences per scene:** 5-7\n"
     prompt += f"**Style:** Magical fairy tale with enchanted atmosphere\n\n"
     
     prompt += """**STEP-BY-STEP INSTRUCTIONS:**
@@ -110,7 +110,7 @@ def create_user_prompt(
    - This description will be used EXACTLY in every scene's image
 
 3.  **Write Each Scene:**
-   - Scene text: 20-30 words, simple language, engaging narrative
+   - Scene text: 5-7 sentences, simple language, engaging narrative
    - Image prompt format: [EXACT character_design] + [scene action] + [EXACT background_design + location detail]
 
 4. **Ensure Consistency:**
@@ -131,7 +131,7 @@ def create_user_prompt(
 **QUALITY CHECKLIST:**
 ✓ Character design is detailed and visual
 ✓ Background design creates fairy tale atmosphere
-✓ Each scene text is 20-30 words
+✓ Each scene text is 5-7 sentences
 ✓ Each image_prompt uses EXACT character + background designs
 ✓ Story has clear beginning, middle, end
 ✓ Language is age-appropriate (4-10 years)
@@ -190,8 +190,21 @@ def validate_story_response(response: dict) -> tuple[bool, str]:
         if "text" not in scene:
             return False, f"Scene {i}: missing text"
         
-        if len(scene["text"]. strip()) < 10:
-            return False, f"Scene {i}: text too short (< 10 characters)"
+        if len(scene["text"].strip()) < 50:
+             # Đây là kiểm tra HEURISTIC (ước tính) vì đếm câu chính xác rất phức tạp.
+             return False, f"Scene {i}: text is too short. Expected 5-7 sentences, got less than 50 characters."
+        
+        # ---------------------------------------------
+        # ✅ SỬA ĐỔI CHÍNH: Kiểm tra trường sentence_count
+        # ---------------------------------------------
+        SENTENCE_COUNT_KEY = "sentence_count"
+        
+        if SENTENCE_COUNT_KEY not in scene:
+            return False, f"Scene {i}: missing {SENTENCE_COUNT_KEY} field"
+            
+        count = scene[SENTENCE_COUNT_KEY]
+        if not isinstance(count, int) or not (5 <= count <= 7):
+             return False, f"Scene {i}: {SENTENCE_COUNT_KEY} must be an integer between 5 and 7."
         
         # Check image_prompt
         if "image_prompt" not in scene:
