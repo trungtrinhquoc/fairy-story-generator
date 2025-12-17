@@ -62,9 +62,7 @@ class Settings(BaseSettings):
     # =================================
     # VOICE SETTINGS
     # =================================
-    tts_voice: str = "auto" 
-    tts_rate: str = "+0%"
-    tts_volume: str = "+0%"
+    tts_voice: str = "en-US-Wavenet-F"
     
     # =================================
     # COMPUTED PROPERTIES
