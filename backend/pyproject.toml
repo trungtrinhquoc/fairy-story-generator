@@ -36,7 +36,7 @@ pydantic-settings = "^2.7.0"
 python-multipart = "^0.0.20"
 huggingface-hub = "^1.1.5"
 google-cloud-aiplatform = "^1.128.0"
-gtts = "^2.5.4"
+google-cloud-texttospeech = "^2.33.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

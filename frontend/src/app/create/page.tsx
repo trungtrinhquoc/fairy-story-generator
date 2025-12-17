@@ -56,9 +56,11 @@ function CreateStoryContent() {
   ];
 
   const voices = [
-    { value: 'en-US-JennyNeural', label: 'Female Storyteller', icon: '👩' },
-    { value: 'en-US-GuyNeural', label: 'Gentle Male', icon: '👨' },
-    { value: 'en-US-AriaNeural', label: 'Child Voice', icon: '👧' },
+    { value: 'en-US-Wavenet-F', label: 'Female Storyteller', icon: '👩' },
+    { value: 'en-US-Wavenet-D', label: 'Gentle Male', icon: '👨' },
+    { value: 'en-AU-Neural2-A', label: 'Child Voice', icon: '👧' },
+    { value: 'vi-VN-Standard-A', label: 'Vietnamese (Standard)', icon: '🇻🇳' },
+
   ];
 
   // Generate summary message

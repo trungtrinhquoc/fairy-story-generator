@@ -1,33 +1,39 @@
-"""
-Voice generation service using gTTS (Google Text-to-Speech).
-100% FREE, no API key required, very reliable.
-"""
-
 import logging
 import io
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple
-from gtts import gTTS
+from google.cloud import texttospeech
+from google.oauth2 import service_account
 from story_generator.utils.timing import get_audio_duration
-
+from story_generator.config import settings 
 logger = logging.getLogger(__name__)
 
-# ✅ THÊM:  Thread pool cho blocking I/O
-_thread_pool = ThreadPoolExecutor(max_workers=5)  # Cho phép 5 gTTS calls đồng thời
-
-
+MAX_RETRIES = 3
+INITIAL_WAIT_TIME = 2.0
 class VoiceGenerator:  
-    """Generate voice narration using Google TTS."""
+    """Generate voice narration using Google TTS WaveNet."""
     
     def __init__(self):
-        """Initialize voice generator."""
-        logger.info("✅ Voice Generator initialized (gTTS with thread pool)")
-    
+        credentials_path = settings.google_application_credentials
+        if not credentials_path:
+             # Nếu đường dẫn không có, SDK sẽ sử dụng cơ chế mặc định (ADC)
+             self.client = texttospeech.TextToSpeechClient() 
+             logger.warning("🔑 Using default credentials (ADC) for Cloud TTS.")
+        else:
+            # 2. TẠO ĐỐI TƯỢNG CREDENTIALS TỪ FILE PATH
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials_path
+            )
+
+            # 3. KHỞI TẠO CLIENT VÀ TRUYỀN VÀO ĐỐI TƯỢNG CREDENTIALS
+            self.client = texttospeech.TextToSpeechClient(
+                credentials=credentials # <--- TRUYỀN CREDENTIALS TƯỜNG MINH
+            )
+    logger.info("✅ Voice Generator initialized (Google Cloud TTS WaveNet)")
     async def generate_audio(
         self,
         text: str,
-        voice:   Optional[str] = None
+        voice: Optional[str] = None
     ) -> Tuple[Optional[bytes], float]:
         """
         Generate audio from text using gTTS.  
@@ -47,31 +53,37 @@ class VoiceGenerator:
             logger.warning(f"⚠️ Text too short or empty: {len(text)} chars")
             return None, 0.0
         
-        logger.info(f"🎤 Generating audio with gTTS - Text length: {len(text)}")
-        
+        final_voice_id = voice if voice and voice != 'auto' else settings.tts_voice
         try:
-            # ✅ RUN IN THREAD POOL (non-blocking)
-            loop = asyncio.get_event_loop()
-            audio_data, duration = await loop.run_in_executor(
-                _thread_pool,
-                self._generate_sync,  # ← Blocking function
-                text
-            )
+            for attempt in range(MAX_RETRIES):
+                try:
+                    # SỬ DỤNG asyncio.to_thread ĐỂ GỌI HÀM BLOCKING (SDK)
+                    audio_data, duration = await asyncio.to_thread(
+                        self._generate_sync,
+                        text,
+                        final_voice_id
+                    )
+                    logger.info(f"✅ Audio generated (Cloud TTS): {len(audio_data)} bytes, ~{duration:.2f}s, Voice: {final_voice_id}")
+                    return audio_data, duration
+                
+                except Exception as e:
+                    logger.warning(f"❌ Attempt {attempt + 1}/{MAX_RETRIES} failed for Cloud TTS. Error: {e}")
+                    if attempt < MAX_RETRIES - 1:
+                        # Hồi chiêu (Exponential Backoff)
+                        wait_time = INITIAL_WAIT_TIME * (2 ** attempt)
+                        logger.info(f"Retrying in {wait_time:.2f} seconds...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        raise e 
             
-            logger. info(f"✅ Audio generated:   {len(audio_data)} bytes, ~{duration:.2f}s")
-            
-            return audio_data, duration
-        
-        except Exception as e:  
-            logger.error(f"❌ Error generating audio with gTTS: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"❌ Fatal error generating audio with Cloud TTS after {MAX_RETRIES} retries: {e}", exc_info=True)
             return None, 0.0
     
-    def _generate_sync(self, text: str) -> Tuple[bytes, float]:
+    def _generate_sync(self, text: str, voice_id: str) -> Tuple[bytes, float]:
         """
-        Synchronous audio generation (runs in thread pool).
-        
-        This method contains BLOCKING I/O and should only be called 
-        via run_in_executor().
+        Synchronous audio generation using Google Cloud TTS SDK.
+        Chạy trong luồng riêng.
         
         Args:
             text: Text to convert
@@ -79,26 +91,32 @@ class VoiceGenerator:
         Returns:
             Tuple of (audio_bytes, duration)
         """
-        # Detect language
-        lang = self._detect_language(text)
+        # 1. Cấu hình Input
+        synthesis_input = texttospeech.SynthesisInput(text = text)
         
-        # Create gTTS object (BLOCKING)
-        tts = gTTS(
-            text=text,
-            lang=lang,
-            slow=False
+        # 2. Cấu hình Voice (DÒNG NÀY CHỌN WAVENET/NEURAL2)
+        language_code = '-'.join(voice_id.split('-')[:2]) 
+        voice_selection = texttospeech.VoiceSelectionParams(
+            language_code=language_code,
+            name=voice_id # <-- Chuyển tên WaveNet/Neural2 voice
         )
         
-        # Generate audio to BytesIO (BLOCKING I/O)
-        audio_fp = io.BytesIO()
-        tts.write_to_fp(audio_fp)
+        # 3. Cấu hình Output (MP3)
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3
+        )
         
-        # Get audio bytes
-        audio_fp.seek(0)
-        audio_data = audio_fp.read()
+        # 4. Gọi API (BLOCKING CALL)
+        response = self.client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice_selection,
+            audio_config=audio_config
+        )
+        
+        audio_data = response.audio_content
         
         if not audio_data or len(audio_data) == 0:
-            raise Exception("gTTS returned empty audio data")
+            raise Exception("Cloud TTS returned empty audio data")
         
         # Calculate duration
         try:
