@@ -41,13 +41,14 @@ async def generate_single_scene_worker(
     scene_num = db_scene["scene_order"]
     scene_id = db_scene["id"]
     
+    # ✅ THÊM:  Timing variables
+    total_start = time.time()
     try:
-        logger.info(f"   🎨 Scene {scene_num} starting...")
-        
+        #logger.info(f"   🎨 Scene {scene_num} starting...")      
         #1. Update status = generating
         await db.update_scene_status(scene_id, "generating")
         
-        start_time = time.time()
+        gen_start = time.time()
         
         #2. Generate image + audio (parallel)
         image_task = image_gen.generate_image(
@@ -68,32 +69,52 @@ async def generate_single_scene_worker(
             audio_task
         )
         
+        gen_end = time.time()
+        gen_time = gen_end - gen_start
+
         #3. Upload (parallel)
-        image_path = f"{story_id}/scene_{scene_num}.png"
+        upload_start = time.time()
+
+        image_path = f"{story_id}/scene_{scene_num}.webp"
         audio_path = f"{story_id}/scene_{scene_num}.mp3"
         
         image_url, audio_url = await asyncio.gather(
-            db.upload_file("story-images", image_path, image_bytes, "image/png"),
+            db.upload_file("story-images", image_path, image_bytes, "image/webp"),
             db.upload_file("story-audio", audio_path, audio_bytes, "audio/mpeg")
         )
-        
+
+        upload_end = time.time()
+        upload_time = upload_end - upload_start
         #4. Update scene database and đánh dấu Success
-        await db.update_scene(scene_id, {
-            "image_url":  image_url,
-            "audio_url": audio_url
-        })
+        await asyncio.gather(
+            db.update_scene(scene_id, {
+                "image_url":  image_url,
+                "audio_url": audio_url
+            }),
+            db.update_scene_status(scene_id, "completed")
+        )
         
         # Update status = completed
-        await db.update_scene_status(scene_id, "completed")
-        
-        duration = time.time() - start_time
-        logger.info(f"   ✅ Scene {scene_num} OK ({duration:.2f}s)")
+        #await db.update_scene_status(scene_id, "completed")
+        total_duration = gen_time + upload_time
+
+        # ✅ LOG DETAILED SUMMARY
+        logger.info(f"")
+        logger.info(f"⏱️  SCENE {scene_num}:")
+        logger.info(f"   • Generation (image+audio): {gen_time:.2f}s")
+        logger.info(f"   • Upload:                    {upload_time:.2f}s")
+        logger.info(f"   • Total:                     {total_duration:.2f}s")
+        logger.info(f"")
         
         return {
             "scene_number": scene_num,
             "scene_id": scene_id,
             "status": "completed",
-            "duration": duration
+            "duration": total_duration,
+            "timings": {
+                "generation":  round(gen_time, 2),
+                "upload": round(upload_time, 2)
+            }
         }
         
     except Exception as e:
@@ -123,7 +144,8 @@ async def generate_remaining_scenes(
     background_design: str,
     image_gen: ImageGenerator,
     voice_gen: VoiceGenerator,
-    db: Database
+    db: Database,
+    story_start_time: float = None
 ):
     """
     Worker function - Tạo scenes 2-6 với PARALLEL PROCESSING.
@@ -149,9 +171,9 @@ async def generate_remaining_scenes(
         voice_gen: VoiceGenerator instance
         db: Database instance
     """
-    
+    worker_start_time = time.time()
     logger.info(f"🚀 Worker started: {story_id}")
-    logger.info(f"   Strategy:  Parallel batch processing (3 scenes per batch)")
+    #logger.info(f"   Strategy:  Parallel batch processing (3 scenes per batch)")
     
     total_scenes = len(db_scenes)
     completed_count = 1  # Scene 1 đã xong
@@ -167,7 +189,7 @@ async def generate_remaining_scenes(
         # ==========================================
         # PARALLEL BATCH PROCESSING
         # ==========================================
-        BATCH_SIZE = 5  # Tạo 3 scenes cùng lúc
+        BATCH_SIZE = 5  # Tạo 5 scenes cùng lúc
         
         # Chia thành batches
         batches = [
@@ -183,7 +205,7 @@ async def generate_remaining_scenes(
             
             logger.info(f"")
             logger.info(f"📦 BATCH {batch_idx}/{len(batches)}: Scenes {scene_numbers}")
-            logger.info(f"   Processing {batch_size} scenes in parallel...")
+            #logger.info(f"   Processing {batch_size} scenes in parallel...")
             
             batch_start = time.time()
             
@@ -233,11 +255,11 @@ async def generate_remaining_scenes(
             # ==========================================
             await db.update_story_progress(story_id, completed_count, total_scenes)
             
-            logger.info(f"")
-            logger.info(f"✅ BATCH {batch_idx} DONE in {batch_duration:.2f}s")
-            logger.info(f"   Completed: {completed_in_batch}/{batch_size}")
-            logger.info(f"   Failed: {failed_in_batch}/{batch_size}")
-            logger.info(f"   Overall progress: {completed_count}/{total_scenes}")
+            # logger.info(f"")
+            # logger.info(f"✅ BATCH {batch_idx} DONE in {batch_duration:.2f}s")
+            # logger.info(f"   Completed: {completed_in_batch}/{batch_size}")
+            # logger.info(f"   Failed: {failed_in_batch}/{batch_size}")
+            # logger.info(f"   Overall progress: {completed_count}/{total_scenes}")
         
         # ==========================================
         # ALL BATCHES COMPLETED
@@ -248,6 +270,14 @@ async def generate_remaining_scenes(
         logger.info(f"🎉 Story {story_id} FULLY COMPLETED!")
         logger.info(f"   Total scenes: {completed_count}/{total_scenes}")
         
+        if story_start_time:
+            grand_total_time = time.time() - story_start_time
+            logger.info(f"⏱️  ═══════════════════════════════════════════════════")
+            logger.info(f"⏱️  🏁 GRAND TOTAL TIME: {grand_total_time:.2f}s")
+            logger.info(f"⏱️     (From request start to all scenes completed)")
+            logger.info(f"⏱️  ═══════════════════════════════════════════════════")
+            logger.info(f"")
+            
     except Exception as e:
         logger.error(f"❌ Worker CRITICAL FAILURE [{story_id}]: {e}", exc_info=True)
         

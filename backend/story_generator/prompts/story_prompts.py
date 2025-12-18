@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # =================================
-# SYSTEM PROMPT - SIMPLE VERSION
+# SYSTEM PROMPT
 # =================================
 
 SYSTEM_PROMPT = """You are an expert FAIRY TALE story writer for children aged 4-10 years old. 

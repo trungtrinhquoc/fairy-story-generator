@@ -25,14 +25,14 @@ class Database:
         # This fixes SSL and timeout errors
         self.http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(
-                connect=15.0,    # Connection timeout
-                read=90.0,       # Read timeout (increased for large files)
-                write=90.0,      # Write timeout (increased for uploads)
-                pool=15.0
+                connect=10.0,    # Connection timeout
+                read=30.0,       # Read timeout (increased for large files)
+                write=30.0,      # Write timeout (increased for uploads)
+                pool=5.0
             ),
             limits=httpx.Limits(
                 max_connections=100,
-                max_keepalive_connections=20
+                max_keepalive_connections=50
             ),
             # Retry on connection errors
             transport=httpx.AsyncHTTPTransport(retries=2)
