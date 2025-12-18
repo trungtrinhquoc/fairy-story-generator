@@ -84,9 +84,7 @@ async def generate_single_scene(
     scene_num = db_scene["scene_order"]
     scene_id = db_scene["id"]
     scene_metrics = tracker.get_scene_metrics(scene_num)
-    scene_metrics. text_ready_at = time.time()
-    
-    logger.info(f"🎨 Generating scene {scene_num}...")
+    scene_metrics.text_ready_at = time.time()
     
     try:
         # ==========================================
@@ -142,10 +140,10 @@ async def generate_single_scene(
         image_time = scene_metrics.image_end - scene_metrics.image_start
         audio_time = scene_metrics.audio_end - scene_metrics.audio_start
 
-        logger.info(
-            f"   ✅ Scene {scene_num} assets:  "
-            f"Image={image_time:.2f}s, Audio={audio_time:.2f}s"
-        )
+        # logger.info(
+        #     f"   ✅ Scene {scene_num} assets:  "
+        #     f"Image={image_time:.2f}s, Audio={audio_time:.2f}s"
+        # )
 
         # ==========================================
         # Upload (PARALLEL if audio exists)
@@ -176,10 +174,7 @@ async def generate_single_scene(
         # Calculate total duration
         scene_metrics.total_duration = time.time() - scene_metrics.text_ready_at
         
-        logger.info(
-            f"✅ Scene {scene_num} COMPLETE in {scene_metrics.total_duration:.2f}s "
-            f"(Upload={upload_time:.2f}s)"
-        )
+        logger.info(f"✅ Scene {scene_num}:  Gen={image_time:.2f}s, Upload={upload_time:.2f}s, Total={scene_metrics.total_duration:.2f}s")
         
         # ==========================================
         # Return complete scene data
@@ -216,8 +211,7 @@ async def generate_story(request: StoryRequest):
     logger.info("=" * 70)
     logger.info(f"📚 NEW STORY REQUEST")
     logger.info(f"   Prompt: {request.prompt[:60]}...")
-    logger.info(f"   Length: {request.story_length. value} ({get_scene_count_from_length(request.story_length.value)} scenes)")
-    logger.info(f"   Tone: {request.story_tone.value}")
+    logger.info(f"   Length: {request.story_length.value} ({get_scene_count_from_length(request.story_length.value)} scenes)")
     logger.info("=" * 70)
     
     # Initialize performance tracker
@@ -312,7 +306,7 @@ async def generate_story(request: StoryRequest):
         # ========================================
         # STEP 5: Start Background Worker
         # ========================================
-        logger.info("🚀 Starting background worker for scenes 2-6...")
+        #logger.info("🚀 Starting background worker for scenes 2-6...")
         
         # Request params để worker dùng
         request_params = {
@@ -320,6 +314,7 @@ async def generate_story(request: StoryRequest):
             "voice": request.voice
         }
         
+        story_start_time = tracker.start_time
         # Tạo coroutine cho worker
         worker_coro = generate_remaining_scenes(
             story_id=story_id,
@@ -330,13 +325,14 @@ async def generate_story(request: StoryRequest):
             background_design=background_design,
             image_gen=image_gen,
             voice_gen=voice_gen,
-            db=db
+            db=db,
+            story_start_time=story_start_time 
         )
         
         # Start task (KHÔNG ĐỢI - background)
         task_manager.start_task(story_id, worker_coro)
         
-        logger.info("✅ Background worker started")
+        #logger.info("✅ Background worker started")
         
         # ========================================
         # STEP 6: Log Performance

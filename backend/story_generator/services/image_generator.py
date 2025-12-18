@@ -154,8 +154,8 @@ class ImageGenerator:
         loop = asyncio.get_running_loop()
         
         for attempt, current_prompt in enumerate(fallback_prompts, 1):
-            logger.info(f"🎨 Scene {scene_number} - Try {attempt}/{len(fallback_prompts)}")
-            logger.info(f"   📝 {current_prompt[:150]}...")
+            # logger.info(f"🎨 Scene {scene_number} - Try {attempt}/{len(fallback_prompts)}")
+            # logger.info(f"   📝 {current_prompt[:150]}...")
             
             try:
                 def _gen():
@@ -178,8 +178,9 @@ class ImageGenerator:
                 
                 # Validate image
                 if image_bytes and len(image_bytes) > 100:
-                    logger.info(f"✅ Scene {scene_number} OK ({len(image_bytes)} bytes)")
-                    return image_bytes
+                    # logger.info(f"✅ Scene {scene_number} OK ({len(image_bytes)} bytes)")
+                    compressed_bytes = self._compress_image(image_bytes)
+                    return compressed_bytes
                 else:
                     logger.warning(f"⚠️ Empty response")
             
@@ -188,12 +189,31 @@ class ImageGenerator:
             
             # Wait before retry
             if attempt < len(fallback_prompts):
-                await asyncio. sleep(1)
+                await asyncio.sleep(1)
         
         # All attempts failed
         logger.error(f"❌ All attempts failed")
         return await self._get_placeholder(scene_number)
     
+    # Nén ảnh trước khi upload
+    def _compress_image(self, image_bytes: bytes) -> bytes:
+        """Nén và chuyển đổi PNG sang WebP để tăng tốc độ upload."""
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+            output = io.BytesIO()
+            
+            img.save(output, format='WEBP', quality=85, method=6) 
+            
+            compressed_bytes = output.getvalue()
+            
+            saving = (1 - len(compressed_bytes) / len(image_bytes)) * 100
+            #logger.info(f"   📦 Compressed: {len(image_bytes)/1024:.1f}KB -> {len(compressed_bytes)/1024:.1f}KB (-{saving:.1f}%)")
+            
+            return compressed_bytes
+        except Exception as e:
+            logger.warning(f"⚠️ Compression failed, using original bytes: {e}")
+            return image_bytes
+
     async def _get_placeholder(self, scene_number: int = None) -> bytes:
         """Generate placeholder."""
         # Create 16:9 image

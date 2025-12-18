@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
+import warnings
 
 from story_generator.config import settings
 from story_generator.database import db
@@ -19,6 +20,11 @@ logging.basicConfig(
     level=getattr(logging, settings.log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("google.auth").setLevel(logging.WARNING)
+logging.getLogger("story_generator.database").setLevel(logging.WARNING)
+warnings.filterwarnings("ignore", category=UserWarning, module="vertexai")
 logger = logging.getLogger(__name__)
 
 
@@ -30,8 +36,8 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup
     logger.info("🚀 Starting Story Generator API...")
-    logger.info(f"📍 Environment: {settings.environment}")
-    logger.info(f"🗄️  Supabase URL: {settings.supabase_url}")
+    # logger.info(f"📍 Environment: {settings.environment}")
+    # logger.info(f"🗄️  Supabase URL: {settings.supabase_url}")
     
     # Test database connection
     db_health = await db.health_check()
@@ -79,21 +85,24 @@ async def log_requests(request: Request, call_next):
     """Log all requests with timing."""
     start_time = time.time()
     
-    # Log request
-    logger.info(f"➡️  {request.method} {request.url.path}")
+    skip_paths = ["/progress", "/health"]
+    should_log = (
+        request.method != "OPTIONS" and
+        not any(path in str(request.url. path) for path in skip_paths)
+    )
     
-    # Process request
+    if should_log:
+        logger.info(f"➡️  {request.method} {request.url.path}")
+    
     response = await call_next(request)
     
-    # Calculate duration
     duration = time.time() - start_time
     
-    # Log response
-    logger.info(
-        f"⬅️  {request.method} {request.url.path} - "
-        f"Status: {response.status_code} - "
-        f"Duration: {duration:.2f}s"
-    )
+    if should_log:
+        logger. info(
+            f"⬅️  {request.method} {request.url.path} - "
+            f"{response.status_code} - {duration:.2f}s"
+        )
     
     return response
 

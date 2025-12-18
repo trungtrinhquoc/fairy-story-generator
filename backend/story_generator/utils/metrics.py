@@ -69,14 +69,14 @@ class PerformanceTracker:
         self.current_step = step
         
         metadata_str = ", ".join(f"{k}={v}" for k, v in metadata.items())
-        logger.info(f"⏱️  [{name}] Started...   {metadata_str}")
+        #logger.info(f"⏱️  [{name}] Started...   {metadata_str}")
         
         try:
             yield step
         finally:
             duration = step.finish()
             self.steps.append(step)
-            logger.info(f"✅ [{name}] Completed in {duration:.2f}s")
+            #logger.info(f"✅ [{name}] Completed in {duration:.2f}s")
             self.current_step = None
     
     def get_scene_metrics(self, scene_number: int) -> SceneMetrics:
@@ -157,8 +157,8 @@ class PerformanceTracker:
         # Averages
         logger.info("📈 Average Timing per Scene:")
         if summary.get('averages'):
-            logger.info(f"   • Image Generation: {summary['averages'].get('image_gen', 0):.2f}s")
-            logger. info(f"   • Audio Generation: {summary['averages'].get('audio_gen', 0):.2f}s")
+            logger.info(f"   • Generation(both): {summary['averages'].get('image_gen', 0):.2f}s")
+            #logger. info(f"   • Audio Generation: {summary['averages'].get('audio_gen', 0):.2f}s")
             logger.info(f"   • Upload (both):    {summary['averages'].get('upload', 0):.2f}s")
         else:
             logger.info("   (No scene data available)")
@@ -179,8 +179,8 @@ class PerformanceTracker:
                 if scene_num != '?' and scene_num is not None:
                     logger.info(
                         f"   Scene {scene_num:>2}: "
-                        f"Image={img_time:>5.2f}s, "
-                        f"Audio={aud_time:>5.2f}s, "
+                        f"Image + Audio={img_time:>5.2f}s, "
+                        #f"Audio={aud_time:>5.2f}s, "
                         f"Upload={upl_time:>5.2f}s, "
                         f"Total={tot_time:>5.2f}s"
                     )

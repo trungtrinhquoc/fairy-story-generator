@@ -63,7 +63,7 @@ class VoiceGenerator:
                         text,
                         final_voice_id
                     )
-                    logger.info(f"✅ Audio generated (Cloud TTS): {len(audio_data)} bytes, ~{duration:.2f}s, Voice: {final_voice_id}")
+                    # logger.info(f"✅ Audio generated (Cloud TTS): {len(audio_data)} bytes, ~{duration:.2f}s, Voice: {final_voice_id}")
                     return audio_data, duration
                 
                 except Exception as e:
