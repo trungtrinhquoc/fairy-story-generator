@@ -9,53 +9,53 @@ export default function Home() {
   const [childName, setChildName] = useState('');
 
   const handleStart = () => {
-    router. push(`/create${childName ? `? name=${childName}` : ''}`);
+    router.push(`/create${childName ? `?name=${childName}` : ''}`);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400">
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-10">
         {/* Header */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <Sparkles className="w-20 h-20 text-yellow-300 animate-pulse" />
+        <div className="text-center mb-10">
+          <div className="flex justify-center mb-4">
+            <Sparkles className="w-16 h-16 text-yellow-300 animate-pulse" />
           </div>
-          <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 drop-shadow-md">
             ✨ Fairy Story Generator
           </h1>
-          <p className="text-2xl text-white/90 mb-8">
+          <p className="text-xl text-white/90 mb-6">
             Create magical AI-powered stories for your child
           </p>
         </div>
 
         {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
+        <div className="grid md:grid-cols-3 gap-6 mb-12 max-w-5xl mx-auto">
           <FeatureCard
-            icon={<BookOpen className="w-12 h-12" />}
+            icon={<BookOpen className="w-10 h-10" />}
             title="AI-Generated Stories"
             description="Personalized fairy tales created just for your child"
           />
           <FeatureCard
-            icon={<Wand2 className="w-12 h-12" />}
+            icon={<Wand2 className="w-10 h-10" />}
             title="Beautiful Illustrations"
             description="Stunning images for every scene"
           />
           <FeatureCard
-            icon={<Music className="w-12 h-12" />}
+            icon={<Music className="w-10 h-10" />}
             title="Voice Narration"
             description="Professional narration brings stories to life"
           />
         </div>
 
         {/* CTA */}
-        <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl p-12">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-            Let's Create a Story!  📖
+        <div className="max-w-md mx-auto bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-5 text-center">
+            Let's Create a Story! 📖
           </h2>
           
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
-              <label className="block text-lg font-medium text-gray-700 mb-2">
+              <label className="block text-base font-medium text-gray-700 mb-1.5">
                 Child's Name (Optional)
               </label>
               <input
@@ -63,19 +63,19 @@ export default function Home() {
                 value={childName}
                 onChange={(e) => setChildName(e.target.value)}
                 placeholder="e.g., Lily, Max, Emma..."
-                className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:ring focus:ring-purple-200 transition"
+                className="w-full px-4 py-3 text-base border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition"
               />
             </div>
 
             <button
               onClick={handleStart}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold py-6 rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg font-bold py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg flex items-center justify-center gap-2"
             >
               Start Creating Magic ✨
             </button>
           </div>
 
-          <p className="text-center text-gray-500 mt-6">
+          <p className="text-center text-xs text-gray-400 mt-5">
             No sign-up required • Takes about 1 minute
           </p>
         </div>
@@ -86,10 +86,10 @@ export default function Home() {
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 text-center hover:bg-white/20 transition">
-      <div className="flex justify-center text-yellow-300 mb-4">{icon}</div>
-      <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-      <p className="text-white/80">{description}</p>
+    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 text-center hover:bg-white/20 transition border border-white/10">
+      <div className="flex justify-center text-yellow-300 mb-3">{icon}</div>
+      <h3 className="text-lg font-bold text-white mb-1.5">{title}</h3>
+      <p className="text-sm text-white/80 leading-relaxed">{description}</p>
     </div>
   );
 }

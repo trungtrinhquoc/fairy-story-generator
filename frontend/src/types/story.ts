@@ -1,6 +1,6 @@
 export type StoryLength = "short" | "medium" | "long";
 export type StoryTone = "funny" | "adventurous" | "gentle";
-export type Theme = "princess" | "dragon" | "forest" | "ocean" | "space" | "magical_forest" | "castle" | "adventure";
+export type Theme = "princess" | "dragon" | "forest" | "ocean" | "space" | "magical_forest" | "castle" | "adventure" | "cute_animals" | "robot" | "superhero" | "friendship" | "school_life" | "family";
 
 export interface StoryRequest {
   prompt: string;
