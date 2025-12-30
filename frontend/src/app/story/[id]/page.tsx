@@ -95,7 +95,7 @@ export default function StoryViewer() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 flex flex-col">
-      {/* Header - Slimmer */}
+      {/* Header */}
       <div className="bg-black/20 backdrop-blur-md border-b border-white/5">
         <div className="container mx-auto px-4 py-2 flex items-center justify-between">
           <button onClick={() => router.push('/')} className="flex items-center gap-1.5 text-white/70 hover:text-white transition text-xs font-medium">
@@ -111,13 +111,13 @@ export default function StoryViewer() {
         </div>
       </div>
 
-      {/* Main Content - Centered & Smaller Card */}
+      {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-5xl">
           <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-white/10">
             <div className="grid lg:grid-cols-2">
-              {/* LEFT: Image - Fixed aspect ratio */}
-              <div className="relative bg-slate-50 flex items-center justify-center aspect-square lg:aspect-auto lg:h-[450px]">
+              {/* LEFT: Image */}
+              <div className="relative bg-slate-50 flex items-center justify-center aspect-square lg:aspect-auto lg:h-[480px]">
                 <img
                   src={scene.image_url}
                   alt={`Scene ${scene.scene_order}`}
@@ -128,78 +128,84 @@ export default function StoryViewer() {
                 </div>
               </div>
 
-              {/* RIGHT: Text & Controls */}
-              <div className="flex flex-col p-6 sm:p-8 lg:h-[450px] bg-white">
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center max-w-md">
-                    <BookOpen className="w-6 h-6 text-indigo-200 mx-auto mb-4" />
-                    <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-medium">
+              {/* RIGHT: Text & Controls - ĐÃ SỬA Ở ĐÂY */}
+              <div className="flex flex-col p-6 sm:p-8 lg:h-[480px] bg-white">
+                
+                {/* 1. Phần văn bản: Sử dụng overflow-y-auto để có thể cuộn */}
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="min-h-full flex flex-col items-center justify-center text-center">
+                    <BookOpen className="w-6 h-6 text-indigo-200 mb-4 flex-shrink-0" />
+                    <p className="text-base sm:text-lg lg:text-xl leading-relaxed text-slate-700 font-medium">
                       {scene.paragraph_text}
                     </p>
                   </div>
                 </div>
 
-                {/* Controls - More Compact */}
-                <div className="mt-6 pt-6 border-t border-slate-100">
-                  <div className="flex items-center justify-center gap-4 mb-5">
+                {/* 2. Phần Controls: Sử dụng flex-shrink-0 để không bị co lại khi text dài */}
+                <div className="mt-6 pt-4 border-t border-slate-100 flex-shrink-0">
+                  <div className="flex items-center justify-center gap-6 mb-5">
                     <button
                       onClick={prevScene}
                       disabled={currentScene === 0}
-                      className="p-2 rounded-full text-slate-400 disabled:opacity-20 hover:bg-slate-100 hover:text-indigo-600 transition"
+                      className="p-2 rounded-full text-slate-400 disabled:opacity-20 hover:bg-slate-50 hover:text-indigo-600 transition"
                     >
-                      <ChevronLeft className="w-6 h-6" />
+                      <ChevronLeft className="w-7 h-7" />
                     </button>
 
                     <button
                       onClick={handlePlayPause}
-                      className="p-3.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-md active:scale-95"
+                      className="p-4 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-lg active:scale-95"
                     >
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                      {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
                     </button>
 
                     <button
                       onClick={nextScene}
                       disabled={currentScene === story.scenes.length - 1}
-                      className="p-2 rounded-full text-slate-400 disabled:opacity-20 hover:bg-slate-100 hover:text-indigo-600 transition"
+                      className="p-2 rounded-full text-slate-400 disabled:opacity-20 hover:bg-slate-50 hover:text-indigo-600 transition"
                     >
-                      <ChevronRight className="w-6 h-6" />
+                      <ChevronRight className="w-7 h-7" />
                     </button>
                   </div>
 
-                  {/* Progress Dots - Smaller */}
-                  <div className="flex gap-1.5 justify-center">
+                  {/* Progress Dots */}
+                  <div className="flex gap-2 justify-center">
                     {story.scenes.map((_, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentScene(index)}
                         className={`transition-all duration-300 ${
                           index === currentScene
-                            ? 'w-6 h-1 bg-indigo-600 rounded-full'
-                            : 'w-1 h-1 bg-slate-200 rounded-full hover:bg-slate-300'
+                            ? 'w-8 h-1.5 bg-indigo-600 rounded-full'
+                            : 'w-1.5 h-1.5 bg-slate-200 rounded-full hover:bg-slate-300'
                         }`}
                       />
                     ))}
                   </div>
 
-                  {isPlaying && (
-                    <div className="flex justify-center items-center gap-1.5 mt-4">
-                       <span className="flex h-1.5 w-1.5 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
-                      </span>
-                      <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-widest">
-                        Narration Playing
-                      </p>
-                    </div>
-                  )}
+                  {/* Narration Status */}
+                  <div className="h-6 mt-4 flex justify-center items-center">
+                    {isPlaying && (
+                      <div className="flex justify-center items-center gap-2">
+                        <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                        </span>
+                        <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-widest">
+                          Narration Playing
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+              {/* KẾT THÚC PHẦN SỬA */}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Audio Player (Hidden) */}
+      {/* Audio Player */}
       {scene.audio_url && (
         <audio
           ref={audioRef}
@@ -211,7 +217,7 @@ export default function StoryViewer() {
             if (currentScene < story.scenes.length - 1) {
               setTimeout(() => {
                 setCurrentScene(currentScene + 1);
-              }, 500);
+              }, 800);
             }
           }}
         />
