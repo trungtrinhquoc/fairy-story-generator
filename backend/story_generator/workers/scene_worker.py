@@ -64,7 +64,7 @@ async def generate_single_scene_worker(
             voice=request_params.get("voice")
         )
         
-        image_bytes, (audio_bytes, audio_duration) = await asyncio.gather(
+        image_bytes, (audio_bytes, audio_duration, transcript) = await asyncio.gather(
             image_task,
             audio_task
         )
@@ -89,7 +89,9 @@ async def generate_single_scene_worker(
         await asyncio.gather(
             db.update_scene(scene_id, {
                 "image_url":  image_url,
-                "audio_url": audio_url
+                "audio_url": audio_url,
+                "transcript": transcript,
+                "audio_duration": audio_duration, 
             }),
             db.update_scene_status(scene_id, "completed")
         )

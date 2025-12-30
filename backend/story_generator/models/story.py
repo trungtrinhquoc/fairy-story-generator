@@ -2,10 +2,16 @@
 Pydantic models for Story and Scene data structures.
 """
 
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List, Literal
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Optional, List, Literal, Dict
 from datetime import datetime
 from enum import Enum
+
+
+def to_camel(string: str) -> str:
+    """Convert snake_case to camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x. title() for x in components[1:])
 
 
 class StoryStatus(str, Enum):
@@ -94,8 +100,8 @@ class StoryRequest(BaseModel):
     # SỬA: Gợi ý giọng đọc Tiếng Anh (Jenny/Guy)
     voice: Optional[str] = Field(
         default=None,
-        description="TTS voice selection (uses en-US-JennyNeural by default)",
-        examples=["en-US-JennyNeural", "en-US-GuyNeural"]
+        description="TTS voice selection (uses en-US-Wavenet-F by default)",
+        examples=["en-US-Wavenet-F", "en-US-Wavenet-D", "en-US-Neural2-F"]
     )
     
     @field_validator('prompt')
@@ -113,7 +119,8 @@ class StoryRequest(BaseModel):
 
 class Scene(BaseModel):
     """Scene structure from LLM generation."""
-    
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     scene_number: int = Field(..., ge=1, description="Scene order number")
     # SỬA: Xác định rõ là Text tiếng Anh
     text: str = Field(..., min_length=10, description="Scene narrative text (English)")
@@ -132,6 +139,7 @@ class Scene(BaseModel):
 class SceneGenerated(BaseModel):
     """Scene with generated assets (images + audio)."""
     
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     id: str
     story_id: str
     scene_order: int
@@ -140,6 +148,13 @@ class SceneGenerated(BaseModel):
     image_url: str
     audio_url: str
     audio_duration: Optional[float] = None
+
+    # Transcript segments from STT
+    transcript:  Optional[List[Dict]] = Field(
+        default=None,
+        description="Transcript segments with timing from Speech-to-Text"
+    )
+
     image_style: Optional[str] = None
     narration_voice: Optional[str] = None
     word_count: Optional[int] = None
@@ -151,7 +166,7 @@ class SceneGenerated(BaseModel):
 
 class StoryResponse(BaseModel):
     """Response model for generated story."""
-    
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, from_attributes = True)
     id: str
     user_id: str
     title: str
@@ -165,14 +180,11 @@ class StoryResponse(BaseModel):
     
     # Scenes (populated when fetching full story)
     scenes: List[SceneGenerated] = Field(default_factory=list)
-    
-    class Config:
-        from_attributes = True
 
 
 class StoryListItem(BaseModel):
     """Simplified story item for list view."""
-    
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     id: str
     title: str
     theme_selected: str
@@ -226,6 +238,7 @@ class ProgressInfo(BaseModel):
         "percentage": 50. 0
     }
     """
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     completed: int = Field(
         description="Số scenes đã hoàn thành",
         ge=0  # Greater or equal 0
@@ -254,6 +267,7 @@ class SceneWithStatus(SceneGenerated):
     DÙNG CHO:
     - API 2 response (cần biết scene đang ở trạng thái nào)
     """
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     status: SceneStatus = Field(
         default=SceneStatus.PENDING,
         description="Trạng thái của scene"
@@ -305,6 +319,7 @@ class StoryProgressResponse(BaseModel):
         "estimated_time_remaining": 18
     }
     """
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     story_id: str = Field(description="ID của story")
     
     title: str = Field(description="Tiêu đề story")
@@ -361,6 +376,7 @@ class StoryGenerationStartResponse(BaseModel):
         "message": "Scene 1 hoàn thành.  Đang tạo scenes còn lại..."
     }
     """
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     story_id: str = Field(description="ID của story")
     
     title: str = Field(description="Tiêu đề story")

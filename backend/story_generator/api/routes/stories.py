@@ -112,7 +112,7 @@ async def generate_single_scene(
         )
         
         # Wait for both
-        image_bytes, (audio_bytes, audio_duration) = await asyncio.gather(
+        image_bytes, (audio_bytes, audio_duration, transcript) = await asyncio.gather(
             image_task,
             audio_task
         )
@@ -134,7 +134,7 @@ async def generate_single_scene(
                 db.upload_file("story-audio", f"{story_id}/scene_{scene_num}. mp3", audio_bytes, "audio/mpeg")
             ]
 
-        scene_metrics. image_end = time.time()
+        scene_metrics.image_end = time.time()
         scene_metrics.audio_end = time.time()
 
         image_time = scene_metrics.image_end - scene_metrics.image_start
@@ -165,7 +165,9 @@ async def generate_single_scene(
         # ==========================================
         await db.update_scene(scene_id, {
             "image_url": image_url,
-            "audio_url": audio_url
+            "audio_url": audio_url,
+            "transcript": transcript,
+            "audio_duration": audio_duration
         })
         
         # Update status = completed
@@ -184,6 +186,7 @@ async def generate_single_scene(
             "image_url": image_url,
             "audio_url": audio_url,
             "audio_duration": audio_duration,
+            "transcript": transcript,
             "word_count": len(db_scene["paragraph_text"].split()),
             "status": "completed"
         }
@@ -361,6 +364,7 @@ async def generate_story(request: StoryRequest):
                     image_prompt_used=scene_1_complete["image_prompt_used"],
                     image_url=scene_1_complete["image_url"],
                     audio_url=scene_1_complete["audio_url"],
+                    transcript=scene_1_complete["transcript"],
                     audio_duration=scene_1_complete. get("audio_duration"),
                     image_style=scene_1_complete.get("image_style"),
                     narration_voice=scene_1_complete.get("narration_voice"),
@@ -485,8 +489,11 @@ async def get_story_progress(story_id: str):
                     image_prompt_used=scene["image_prompt_used"],
                     image_url=scene["image_url"],
                     audio_url=scene["audio_url"],
-                    image_style=scene. get("image_style"),
-                    narration_voice=scene. get("narration_voice"),
+                    audio_duration=scene.get("audio_duration"), 
+                    transcript=scene.get("transcript"),
+                    image_style=scene.get("image_style"),
+                    narration_voice=scene.get("narration_voice"),
+                    word_count=len(scene["paragraph_text"].split()) if scene.get("paragraph_text") else None,  
                     status=SceneStatus(scene. get("status", "completed")),
                     error_message=scene.get("error_message"),
                     started_at=scene.get("started_at"),

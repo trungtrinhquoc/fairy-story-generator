@@ -1105,6 +1105,30 @@ proto-plus = [
 protobuf = ">=3.20.2,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<7.0.0"
 
 [[package]]
+name = "google-cloud-speech"
+version = "2.35.0"
+description = "Google Cloud Speech API client library"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "google_cloud_speech-2.35.0-py3-none-any.whl", hash = "sha256:52ea1a3b486a93b517f77c562e2e516b5b9e04d45cc5596d13be679986abb269"},
+    {file = "google_cloud_speech-2.35.0.tar.gz", hash = "sha256:a9f68b02d71f159105f09aec875b6aa1bddfbc4e584d8885a436647d8a4027b9"},
+]
+
+[package.dependencies]
+google-api-core = {version = ">=1.34.1,<2.0.dev0 || >=2.11.dev0,<3.0.0", extras = ["grpc"]}
+google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
+grpcio = [
+    {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
+    {version = ">=1.33.2,<2.0.0", markers = "python_version < \"3.14\""},
+]
+proto-plus = [
+    {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
+    {version = ">=1.22.3,<2.0.0", markers = "python_version < \"3.13\""},
+]
+protobuf = ">=3.20.2,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<7.0.0"
+
+[[package]]
 name = "google-cloud-storage"
 version = "3.4.1"
 description = "Google Cloud Storage API client library"
@@ -3531,4 +3555,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11, <3.15"
-content-hash = "41032bd260f4734fbe6825225243f2e7146995418c7565cc5051edad931e73fc"
+content-hash = "d0f4b032a7269b404a30e0a283fd931eb15ee460ab041758201ed60226ddae56"

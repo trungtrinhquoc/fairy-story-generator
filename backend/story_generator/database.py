@@ -147,22 +147,51 @@ class Database:
             logger.error(f"❌ Error creating scenes: {e}")
             raise
     
-    async def update_scene(
-        self, 
-        scene_id: str, 
-        update_data: Dict[str, Any]
-    ) -> bool:
-        """Update a scene."""
+    async def update_scene(self, scene_id: str, data: dict):
+        """
+        Update scene with image, audio URLs, and transcript. 
+        
+        Args:
+            scene_id: Scene ID
+            data: Dict with keys:  image_url, audio_url, transcript
+        
+        Returns:
+            Updated scene record
+        """
+        update_data = {}
+        
+        # Add fields conditionally
+        if data.get("image_url"):
+            update_data["image_url"] = data["image_url"]
+        
+        if data.get("audio_url"):
+            update_data["audio_url"] = data["audio_url"]
+        
+        if "audio_duration" in data:  
+            update_data["audio_duration"] = data["audio_duration"]
+
+        if "transcript" in data:  
+            update_data["transcript"] = data["transcript"]
+        
+        if not update_data:
+            logger.warning(f"⚠️ No data to update for scene {scene_id}")
+            return None
+        
+        # Update (NO updated_at - not in scenes table)
         try:
-            self. client.table("scenes")\
-                .update(update_data)\
-                .eq("id", scene_id)\
-                .execute()
-            return True
+            result = self.client.table("scenes").update(
+                update_data
+            ).eq("id", scene_id).execute()
             
+            if result. data:
+                logger.info(f"✅ Scene {scene_id} updated: {list(update_data.keys())}")
+                return result.data[0]
+            
+            return None
+        
         except Exception as e:
             logger.error(f"❌ Error updating scene {scene_id}: {e}")
-            return False
+            return None
     
     async def get_story_scenes(self, story_id: str) -> List[Dict[str, Any]]:
         """Get all scenes for a story, ordered by scene_order."""
