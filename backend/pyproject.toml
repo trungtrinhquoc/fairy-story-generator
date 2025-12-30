@@ -37,6 +37,7 @@ python-multipart = "^0.0.20"
 huggingface-hub = "^1.1.5"
 google-cloud-aiplatform = "^1.128.0"
 google-cloud-texttospeech = "^2.33.0"
+google-cloud-speech = "^2.35.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

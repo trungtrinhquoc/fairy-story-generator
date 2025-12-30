@@ -1,8 +1,9 @@
 import logging
 import io
 import asyncio
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 from google.cloud import texttospeech
+from google.cloud import speech
 from google.oauth2 import service_account
 from story_generator.utils.timing import get_audio_duration
 from story_generator.config import settings 
@@ -11,13 +12,14 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 INITIAL_WAIT_TIME = 2.0
 class VoiceGenerator:  
-    """Generate voice narration using Google TTS WaveNet."""
+    """Generate voice narration using Google TTS with Speech-to-Text transcript"""
     
     def __init__(self):
         credentials_path = settings.google_application_credentials
         if not credentials_path:
              # Nếu đường dẫn không có, SDK sẽ sử dụng cơ chế mặc định (ADC)
-             self.client = texttospeech.TextToSpeechClient() 
+             self.tts_client = texttospeech.TextToSpeechClient() 
+             self.stt_client = speech.SpeechClient()
              logger.warning("🔑 Using default credentials (ADC) for Cloud TTS.")
         else:
             # 2. TẠO ĐỐI TƯỢNG CREDENTIALS TỪ FILE PATH
@@ -26,15 +28,16 @@ class VoiceGenerator:
             )
 
             # 3. KHỞI TẠO CLIENT VÀ TRUYỀN VÀO ĐỐI TƯỢNG CREDENTIALS
-            self.client = texttospeech.TextToSpeechClient(
-                credentials=credentials # <--- TRUYỀN CREDENTIALS TƯỜNG MINH
-            )
+            self.tts_client = texttospeech.TextToSpeechClient(credentials=credentials)
+            self.stt_client = speech.SpeechClient(credentials=credentials)
     logger.info("✅ Voice Generator initialized (Google Cloud TTS WaveNet)")
+
+    
     async def generate_audio(
         self,
         text: str,
         voice: Optional[str] = None
-    ) -> Tuple[Optional[bytes], float]:
+    ) -> Tuple[Optional[bytes], float, List[Dict]]:
         """
         Generate audio from text using gTTS.  
         
@@ -42,7 +45,7 @@ class VoiceGenerator:
         
         Args:
             text: Text to convert to speech
-            voice:   Voice parameter (ignored in gTTS, kept for compatibility)
+            voice:   Voice parameter 
         
         Returns:
             Tuple of (audio_bytes, duration_seconds)
@@ -51,20 +54,26 @@ class VoiceGenerator:
         # Validate text
         if not text or len(text.  strip()) < 5:
             logger.warning(f"⚠️ Text too short or empty: {len(text)} chars")
-            return None, 0.0
+            return None, 0.0, []
         
         final_voice_id = voice if voice and voice != 'auto' else settings.tts_voice
         try:
             for attempt in range(MAX_RETRIES):
                 try:
-                    # SỬ DỤNG asyncio.to_thread ĐỂ GỌI HÀM BLOCKING (SDK)
+                    #STEP 1: Generate TTS audio SỬ DỤNG asyncio.to_thread ĐỂ GỌI HÀM BLOCKING (SDK)
                     audio_data, duration = await asyncio.to_thread(
                         self._generate_sync,
                         text,
                         final_voice_id
                     )
+
+                    # STEP 2: Get transcript segments from STT
+                    transcript_segments = await asyncio.to_thread(
+                        self._extract_transcript_from_stt,
+                        audio_data
+                    )
                     # logger.info(f"✅ Audio generated (Cloud TTS): {len(audio_data)} bytes, ~{duration:.2f}s, Voice: {final_voice_id}")
-                    return audio_data, duration
+                    return audio_data, duration, transcript_segments
                 
                 except Exception as e:
                     logger.warning(f"❌ Attempt {attempt + 1}/{MAX_RETRIES} failed for Cloud TTS. Error: {e}")
@@ -78,7 +87,7 @@ class VoiceGenerator:
             
         except Exception as e:
             logger.error(f"❌ Fatal error generating audio with Cloud TTS after {MAX_RETRIES} retries: {e}", exc_info=True)
-            return None, 0.0
+            return None, 0.0, []
     
     def _generate_sync(self, text: str, voice_id: str) -> Tuple[bytes, float]:
         """
@@ -107,7 +116,7 @@ class VoiceGenerator:
         )
         
         # 4. Gọi API (BLOCKING CALL)
-        response = self.client.synthesize_speech(
+        response = self.tts_client.synthesize_speech(
             input=synthesis_input,
             voice=voice_selection,
             audio_config=audio_config
@@ -130,6 +139,72 @@ class VoiceGenerator:
         
         return audio_data, duration
     
+    def _extract_transcript_from_stt(self, audio_bytes: bytes) -> List[Dict]:
+        """
+        Extract transcript segments from audio using Google STT.
+        
+        Args:
+            audio_bytes: MP3 audio content
+        
+        Returns:
+            List of transcript segments: 
+            [
+                {
+                    "start": 0.0,
+                    "end": 3.5,
+                    "text": "Once upon a time, there was a brave princess."
+                }
+            ]
+        """
+        
+        # Config STT with word timestamps
+        config = speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.MP3,
+            sample_rate_hertz=24000,  # Google TTS default
+            language_code="en-US",
+            enable_word_time_offsets=True,  # Enable word timestamps
+            enable_automatic_punctuation=True,
+            model="default"
+        )
+        
+        audio = speech.RecognitionAudio(content=audio_bytes)
+        
+        # Call STT API
+        response = self.stt_client.recognize(config=config, audio=audio)
+        
+        # Parse transcript segments
+        transcript_segments = []
+        
+        if not response.results:
+            logger. warning("⚠️ STT returned no results")
+            return []
+        
+        # Process each result (each result is a segment)
+        for result in response. results:
+            alternative = result.alternatives[0]
+            
+            # Get start/end time from words
+            if alternative.words:
+                start_time = alternative.words[0].start_time. total_seconds()
+                end_time = alternative.words[-1]. end_time.total_seconds()
+            else:
+                start_time = 0.0
+                end_time = 0.0
+            
+            segment = {
+                "start": round(start_time, 2),
+                "end": round(end_time, 2),
+                "text": alternative.transcript. strip()
+            }
+            
+            transcript_segments.append(segment)
+        
+        logger.info(f"📝 STT extracted {len(transcript_segments)} segments")
+        for seg in transcript_segments:
+            logger.info(f"   {seg['start']}s-{seg['end']}s: {seg['text'][: 50]}...")
+        
+        return transcript_segments
+
     def _detect_language(self, text: str) -> str:
         """
         Detect language from text.  
