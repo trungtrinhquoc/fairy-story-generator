@@ -14,22 +14,22 @@ export interface StoryRequest {
 
 export interface Scene {
   id: string;
-  scene_order: number;
-  paragraph_text: string;
-  image_url: string;
-  audio_url: string;
-  audio_duration?: number;
-  word_count?: number;
+  sceneOrder: number;
+  paragraphText: string;
+  imageUrl: string;
+  audioUrl: string;
+  audioDuration?: number;
+  wordCount?: number;
 }
 
 export interface Story {
   id: string;
   title: string;
-  story_length: StoryLength;
-  story_tone: StoryTone;
-  theme_selected: string;
+  storyLength: StoryLength;
+  storyTone: StoryTone;
+  themeSelected: string;
   status: "generating" | "completed" | "failed";
-  cover_image_url: string;
-  created_at: string;
+  coverImageUrl: string;
+  createdAt: string;
   scenes: Scene[];
 }

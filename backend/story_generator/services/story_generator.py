@@ -11,6 +11,7 @@ import logging
 import json
 from typing import Optional
 import google.generativeai as genai
+from openai import OpenAI
 import asyncio
 
 from story_generator.config import settings
@@ -37,18 +38,26 @@ class StoryGenerator:
         )
     """
     
-    def __init__(self):
-        """Initialize Gemini."""
-        genai.configure(api_key=settings.gemini_api_key)
+    # def __init__(self):
+    #     """Initialize Gemini."""
+    #     genai.configure(api_key=settings.gemini_api_key)
         
-        self.model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-lite",
-            generation_config={
-                "temperature": 0.9,
-                "top_p": 0.95,
-                "max_output_tokens": 8192,
-            }
+    #     self.model = genai.GenerativeModel(
+    #         model_name="gemini-2.5-flash-lite",
+    #         generation_config={
+    #             "temperature": 0.9,
+    #             "top_p": 0.95,
+    #             "max_output_tokens": 8192,
+    #         }
+    #     )
+    def __init__(self):
+        """Initialize OpenRouter client."""
+        self.client = OpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1"
         )
+        self.model = settings.openrouter_model
+        logger.info(f"✅ Story Generator initialized (OpenRouter: {self.model})")
     
     async def generate_story(
         self,
@@ -106,13 +115,25 @@ class StoryGenerator:
         
         for attempt in range(1, max_attempts + 1):
             try:
-                logger.info(f"📝 Gemini attempt {attempt}/{max_attempts}...")
+                logger.info(f"📝 ChatGPT-4o attempt {attempt}/{max_attempts}...")
                 
                 # Call Gemini
-                response = self.model.generate_content([system_instruction, user_instruction])
+                response = await asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": user_instruction}
+                    ],
+                    temperature=0.9,
+                    max_tokens=8192,
+                    response_format={"type": "json_object"} 
+                )
 
+                #Extract content from OpenAI response
+                response_text = response.choices[0].message.content
                 # Parse response
-                story_data = self._parse_response(response.text)
+                story_data = self._parse_response(response_text)
                 
                 is_valid, error_msg = validate_story_response(story_data)
                 if not is_valid:

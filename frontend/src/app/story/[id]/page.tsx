@@ -119,8 +119,8 @@ export default function StoryViewer() {
               {/* LEFT: Image */}
               <div className="relative bg-slate-50 flex items-center justify-center aspect-square lg:aspect-auto lg:h-[480px]">
                 <img
-                  src={scene.image_url}
-                  alt={`Scene ${scene.scene_order}`}
+                  src={scene.imageUrl}
+                  alt={`Scene ${scene.sceneOrder}`}
                   className="w-full h-full object-cover lg:object-contain"
                 />
                 <div className="absolute bottom-2 left-2 bg-black/40 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
@@ -136,7 +136,7 @@ export default function StoryViewer() {
                   <div className="min-h-full flex flex-col items-center justify-center text-center">
                     <BookOpen className="w-6 h-6 text-indigo-200 mb-4 flex-shrink-0" />
                     <p className="text-base sm:text-lg lg:text-xl leading-relaxed text-slate-700 font-medium">
-                      {scene.paragraph_text}
+                      {scene.paragraphText}
                     </p>
                   </div>
                 </div>
@@ -206,10 +206,10 @@ export default function StoryViewer() {
       </div>
 
       {/* Audio Player */}
-      {scene.audio_url && (
+      {scene.audioUrl && (
         <audio
           ref={audioRef}
-          src={scene.audio_url}
+          src={scene.audioUrl}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => {

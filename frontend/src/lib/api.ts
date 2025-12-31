@@ -5,13 +5,13 @@ export interface StoryGenerationRequest {
   prompt: string;
   story_length: 'short' | 'medium' | 'long';
   story_tone: 'gentle' | 'funny' | 'adventurous';
-  theme?:  string;
+  theme?: string;
   image_style?: string;
   voice?:  string;
 }
 
 export interface StoryProgressResponse {
-  story_id: string;
+  storyId: string;  // ✅ camelCase
   title: string;
   status: 'generating' | 'completed' | 'failed';
   progress: {
@@ -20,8 +20,8 @@ export interface StoryProgressResponse {
     percentage: number;
   };
   scenes: any[];
-  estimated_time_remaining?:  number;
-  error_message?: string;
+  estimatedTimeRemaining?: number;  // ✅ camelCase
+  errorMessage?: string;  // ✅ camelCase
 }
 
 /**
@@ -36,7 +36,7 @@ export async function generateStory(request: StoryGenerationRequest) {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON. stringify(request),
+    body: JSON.stringify(request),
   });
 
   if (!response.ok) {
@@ -47,6 +47,15 @@ export async function generateStory(request: StoryGenerationRequest) {
 
   const data = await response.json();
   console.log('✅ API Response:', data);
+  console.log('   Keys:', Object.keys(data));  // ✅ DEBUG
+  console.log('   Scenes:', data.scenes?.length);  // ✅ DEBUG
+  
+  // ✅ Validate camelCase
+  if (data.storyId) {
+    console.log('✅ Response uses camelCase');
+  } else if (data.story_id) {
+    console.error('❌ Response uses snake_case!  Backend config issue.');
+  }
   
   return data;
 }
@@ -54,7 +63,7 @@ export async function generateStory(request: StoryGenerationRequest) {
 /**
  * Get story progress (for polling)
  */
-export async function getStoryProgress(storyId: string): Promise<StoryProgressResponse> {
+export async function getStoryProgress(storyId:  string): Promise<StoryProgressResponse> {
   console.log(`🔗 API Call: GET /api/v1/stories/${storyId}/progress`);
   
   const response = await fetch(`${API_BASE_URL}/api/v1/stories/${storyId}/progress`, {
@@ -69,7 +78,8 @@ export async function getStoryProgress(storyId: string): Promise<StoryProgressRe
   }
 
   const data = await response.json();
-  console.log(`✅ Progress:  ${data.progress?. completed}/${data.progress?.total} scenes`);
+  console.log(`✅ Progress:  ${data.progress?.completed}/${data.progress?.total} scenes`);
+  console.log('   Scene keys:', data.scenes?.[0] ? Object.keys(data.scenes[0]) : 'No scenes');  // ✅ DEBUG
   
   return data;
 }
@@ -91,8 +101,10 @@ export async function getStory(storyId: string) {
     throw new Error('Story not found');
   }
 
-  const data = await response.json();
+  const data = await response. json();
   console.log('✅ Story loaded:', data. title);
+  console.log('   Scenes count:', data.scenes?.length);
+  console.log('   First scene keys:', data.scenes?.[0] ? Object.keys(data.scenes[0]) : 'No scenes');  // ✅ DEBUG
   
   return data;
 }

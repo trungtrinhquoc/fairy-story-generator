@@ -25,7 +25,7 @@ export function useStoryGeneration() {
         body: JSON.stringify(request),
       });
       
-      if (!response.ok) {
+      if (!response. ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to generate story');
       }
@@ -33,19 +33,21 @@ export function useStoryGeneration() {
       const result = await response.json();
       
       console.log('✅ API Response:', result);
-      console.log('   Story ID:', result.story_id);
+      console.log('   Story ID:', result.storyId);  // ✅ camelCase
       console.log('   Title:', result. title);
       console.log('   Scenes:', result.scenes?. length || 0);
       
-      if (! result.scenes || result.scenes.length === 0) {
+      if (! result.scenes || result.scenes. length === 0) {
         console.error('❌ No scenes in response! ');
         throw new Error('Scene 1 not returned from API');
       }
       
-      console.log('   Scene 1 image:', result.scenes[0]?.image_url);
-      console.log('   Scene 1 audio:', result.scenes[0]?. audio_url);
+      // ✅ Check camelCase fields
+      console.log('   Scene 1 image:', result.scenes[0]?.imageUrl);  // ✅ camelCase
+      console.log('   Scene 1 audio:', result.scenes[0]?.audioUrl);  // ✅ camelCase
+      console.log('   Scene 1 text:', result.scenes[0]?. paragraphText?. substring(0, 50));  // ✅ camelCase
       
-      setStoryId(result.story_id);
+      setStoryId(result.storyId);  // ✅ camelCase
       setTitle(result.title);
       setIsGenerating(false);
       

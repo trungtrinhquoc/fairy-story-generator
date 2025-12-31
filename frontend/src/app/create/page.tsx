@@ -247,7 +247,7 @@ function CreateStoryContent() {
                       {/* Scene Header */}
                       <div className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-3">
                         <h3 className="text-white font-bold text-lg">
-                          Scene {scene.scene_order}
+                          Scene {scene.sceneOrder}
                         </h3>
                       </div>
 
@@ -256,10 +256,10 @@ function CreateStoryContent() {
                         <div className="grid md:grid-cols-2 gap-6">
                           {/* Image */}
                           <div className="relative">
-                            {scene.image_url ?  (
+                            {scene.imageUrl ?  (
                               <img
-                                src={scene.image_url}
-                                alt={`Scene ${scene.scene_order}`}
+                                src={scene.imageUrl}
+                                alt={`Scene ${scene.sceneOrder}`}
                                 className="w-full h-64 object-cover rounded-lg shadow-md"
                               />
                             ) : (
@@ -272,7 +272,7 @@ function CreateStoryContent() {
                           {/* Text & Audio */}
                           <div className="flex flex-col justify-between">
                             <p className="text-gray-700 leading-relaxed mb-4">
-                              {scene.paragraph_text}
+                              {scene.paragraphText}
                             </p>
 
                             {/* Audio Player */}
@@ -281,7 +281,7 @@ function CreateStoryContent() {
                                 <audio
                                   controls
                                   className="w-full"
-                                  src={scene. audio_url}
+                                  src={scene.audioUrl}
                                 >
                                   Your browser does not support audio.
                                 </audio>
