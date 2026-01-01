@@ -276,7 +276,7 @@ function CreateStoryContent() {
                             </p>
 
                             {/* Audio Player */}
-                            {scene.audio_url && (
+                            {scene.audioUrl && (
                               <div className="mt-auto">
                                 <audio
                                   controls
