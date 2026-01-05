@@ -37,7 +37,8 @@ class StoryGenerator:
             story_tone="adventurous"
         )
     """
-    
+
+    # Gemini
     # def __init__(self):
     #     """Initialize Gemini."""
     #     genai.configure(api_key=settings.gemini_api_key)
@@ -50,6 +51,8 @@ class StoryGenerator:
     #             "max_output_tokens": 8192,
     #         }
     #     )
+
+    # OpenRouter
     def __init__(self):
         """Initialize OpenRouter client."""
         self.client = OpenAI(
@@ -118,6 +121,14 @@ class StoryGenerator:
                 logger.info(f"📝 ChatGPT-4o attempt {attempt}/{max_attempts}...")
                 
                 # Call Gemini
+                # response = await asyncio.to_thread(
+                #     self.model.generate_content,
+                #     [system_instruction, user_instruction]
+                # )
+
+                # response_text = response.text
+                # story_data = self._parse_response(response_text)
+                # Call gpt-4o
                 response = await asyncio.to_thread(
                     self.client.chat.completions.create,
                     model=self.model,
