@@ -218,7 +218,7 @@ class Database:
         path: str, 
         file_data: bytes,
         content_type: str = "image/png",
-        max_retries: int = 3
+        max_retries: int = 2
     ) -> Optional[str]:
         """
         Upload file to Supabase Storage with retry logic.

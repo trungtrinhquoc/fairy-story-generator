@@ -67,7 +67,7 @@ class StoryRequest(BaseModel):
         max_length=500,
         # SỬA: Mô tả và ví dụ bằng Tiếng Anh
         description="Story prompt in English (e.g., about a robot, a fairy, etc.)",
-        examples=["A brave little boy meets a friendly dragon in a magical forest"]
+        examples=["Mia turns into a mermaid and hosts a tea party at the bottom of the ocean. Her guests are a polite octopus and a glowing seahorse. They drink sea-foam tea out of seashell cups while sitting on a table made of bright pink coral."]
     )
     
     story_length: StoryLength = Field(

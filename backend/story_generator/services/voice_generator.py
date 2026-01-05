@@ -52,7 +52,7 @@ class VoiceGenerator:
         """
         
         # Validate text
-        if not text or len(text.  strip()) < 5:
+        if not text or len(text.strip()) < 5:
             logger.warning(f"⚠️ Text too short or empty: {len(text)} chars")
             return None, 0.0, []
         
@@ -112,7 +112,9 @@ class VoiceGenerator:
         
         # 3. Cấu hình Output (MP3)
         audio_config = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3
+            audio_encoding=texttospeech.AudioEncoding.MP3,
+            speaking_rate=0.85,
+            pitch=0.0
         )
         
         # 4. Gọi API (BLOCKING CALL)
@@ -180,29 +182,45 @@ class VoiceGenerator:
             return []
         
         # Process each result (each result is a segment)
-        for result in response. results:
+        # for result in response. results:
+        #     alternative = result.alternatives[0]
+            
+        #     # Get start/end time from words
+        #     if alternative.words:
+        #         start_time = alternative.words[0].start_time. total_seconds()
+        #         end_time = alternative.words[-1]. end_time.total_seconds()
+        #     else:
+        #         start_time = 0.0
+        #         end_time = 0.0
+            
+        #     segment = {
+        #         "start": round(start_time, 2),
+        #         "end": round(end_time, 2),
+        #         "text": alternative.transcript. strip()
+        #     }
+            
+        #     transcript_segments.append(segment)
+        
+        # #logger.info(f"📝 STT extracted {len(transcript_segments)} segments")
+        # #for seg in transcript_segments:
+        #     #logger.info(f"   {seg['start']}s-{seg['end']}s: {seg['text'][: 50]}...")
+        
+        # return transcript_segments
+        # Get first alternative (highest confidence)
+        #alternative = response.results[0]. alternatives[0]
+        
+        for result in response.results:
             alternative = result.alternatives[0]
+            for word_info in alternative.words:
+                transcript_segments.append({
+                    "word":  word_info.word, 
+                    "start": round(word_info.start_time.total_seconds(), 2),
+                    "end": round(word_info.end_time.total_seconds(), 2)
+                })
             
-            # Get start/end time from words
-            if alternative.words:
-                start_time = alternative.words[0].start_time. total_seconds()
-                end_time = alternative.words[-1]. end_time.total_seconds()
-            else:
-                start_time = 0.0
-                end_time = 0.0
+            #logger.info(f"📝 STT transcript: {alternative.transcript}")
+            #logger.info(f"🕐 Extracted {len(transcript_segments)} word timestamps from STT")
             
-            segment = {
-                "start": round(start_time, 2),
-                "end": round(end_time, 2),
-                "text": alternative.transcript. strip()
-            }
-            
-            transcript_segments.append(segment)
-        
-        logger.info(f"📝 STT extracted {len(transcript_segments)} segments")
-        for seg in transcript_segments:
-            logger.info(f"   {seg['start']}s-{seg['end']}s: {seg['text'][: 50]}...")
-        
         return transcript_segments
 
     def _detect_language(self, text: str) -> str:

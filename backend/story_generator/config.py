@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # =================================
     # AI SERVICE API KEYS
     # =================================
-    #gemini_api_key: str
+    gemini_api_key: str
     openrouter_api_key: str
     openrouter_model: str = "openai/chatgpt-4o-latest"
     
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # =================================
     # VOICE SETTINGS
     # =================================
-    tts_voice: str = "en-US-Wavenet-F"
+    tts_voice: str = "en-US-News-L"
     
     # =================================
     # COMPUTED PROPERTIES
