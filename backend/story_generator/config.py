@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # =================================
     gemini_api_key: str
     openrouter_api_key: str
-    openrouter_model: str = "openai/chatgpt-4o-latest"
+    openrouter_model: str = "google/gemini-3-flash-preview"
     
     # Google Cloud / Vertex AI (NEW - CẦN CHO IMAGE GENERATION)
     google_cloud_project: Optional[str] = None

@@ -62,6 +62,26 @@ class StoryGenerator:
         self.model = settings.openrouter_model
         logger.info(f"✅ Story Generator initialized (OpenRouter: {self.model})")
     
+    def _expand_image_prompts(self, story_data: dict) -> dict:
+        """
+        Expand {CHARACTER} and {BACKGROUND} placeholders in image prompts.
+        
+        This reduces output tokens by 600+ for 6-scene story.
+        """
+        character = story_data.get("character_design", "")
+        background = story_data.get("background_design", "")
+        
+        for scene in story_data. get("scenes", []):
+            prompt = scene.get("image_prompt", "")
+            
+            # Replace placeholders
+            prompt = prompt.replace("{CHARACTER}", character)
+            prompt = prompt.replace("{BACKGROUND}", background)
+            
+            scene["image_prompt"] = prompt
+        
+        return story_data
+
     async def generate_story(
         self,
         user_prompt: str,
@@ -126,8 +146,18 @@ class StoryGenerator:
                 #     [system_instruction, user_instruction]
                 # )
 
+                # if hasattr(response, 'usage_metadata'):
+                #     usage = response.usage_metadata
+                #     logger.info("=" * 30)
+                #     logger.info(f"📊 GEMINI TOKEN USAGE:")
+                #     logger.info(f"   • Prompt Tokens (Input): {usage.prompt_token_count}")
+                #     logger.info(f"   • Candidates Tokens (Output): {usage.candidates_token_count}")
+                #     logger.info(f"   • Total Tokens: {usage.total_token_count}")
+                #     logger.info("=" * 30)
+
                 # response_text = response.text
                 # story_data = self._parse_response(response_text)
+
                 # Call gpt-4o
                 response = await asyncio.to_thread(
                     self.client.chat.completions.create,
@@ -137,15 +167,22 @@ class StoryGenerator:
                         {"role": "user", "content": user_instruction}
                     ],
                     temperature=0.9,
-                    max_tokens=8192,
+                    max_tokens=4000,
                     response_format={"type": "json_object"} 
                 )
-
-                #Extract content from OpenAI response
+                if hasattr(response, 'usage') and response.usage:
+                    usage = response.usage
+                    logger.info("=" * 30)
+                    logger.info(f"📊 OPENROUTER TOKEN USAGE:")
+                    logger.info(f"   • Prompt Tokens (Input): {usage.prompt_tokens}")
+                    logger.info(f"   • Completion Tokens (Output): {usage.completion_tokens}")
+                    logger.info(f"   • Total Tokens: {usage.total_tokens}")
+                    logger.info("=" * 30)
+                # Extract content from OpenAI response
                 response_text = response.choices[0].message.content
                 # Parse response
                 story_data = self._parse_response(response_text)
-                
+                story_data = self._expand_image_prompts(story_data)
                 is_valid, error_msg = validate_story_response(story_data)
                 if not is_valid:
                     logger. warning(f"⚠️ Validation failed: {error_msg}")
