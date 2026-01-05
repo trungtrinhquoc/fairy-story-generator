@@ -99,9 +99,9 @@ class StoryRequest(BaseModel):
     
     # SỬA: Gợi ý giọng đọc Tiếng Anh (Jenny/Guy)
     voice: Optional[str] = Field(
-        default=None,
-        description="TTS voice selection (uses en-US-Wavenet-F by default)",
-        examples=["en-US-Wavenet-F", "en-US-Wavenet-D", "en-US-Neural2-F"]
+        default="en-US-News-L",  
+        description="TTS voice selection",
+        examples=["en-US-News-L", "en-US-Studio-O", "en-US-Neural2-F"] 
     )
     
     @field_validator('prompt')
