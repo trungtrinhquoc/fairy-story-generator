@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, BookOpen, Music, Wand2 } from 'lucide-react';
+import { Sparkles, BookOpen, Music, Wand2, Library } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -26,6 +26,15 @@ export default function Home() {
           <p className="text-xl text-white/90 mb-6">
             Create magical AI-powered stories for your child
           </p>
+          
+          {/* ← THÊM MỚI: Button "My Stories" */}
+          <button
+            onClick={() => router.push('/stories')}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-white/30 transition border border-white/30 font-bold"
+          >
+            <Library className="w-5 h-5" />
+            My Stories
+          </button>
         </div>
 
         {/* Features */}
@@ -50,12 +59,12 @@ export default function Home() {
         {/* CTA */}
         <div className="max-w-md mx-auto bg-white rounded-3xl shadow-xl p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-5 text-center">
-            Let's Create a Story! 📖
+            Let's Create a Story!  📖
           </h2>
           
           <div className="space-y-5">
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-1.5">
+              <label className="block text-base font-medium text-gray-700 mb-1. 5">
                 Child's Name (Optional)
               </label>
               <input
@@ -69,7 +78,7 @@ export default function Home() {
 
             <button
               onClick={handleStart}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg font-bold py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg font-bold py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg"
             >
               Start Creating Magic ✨
             </button>
@@ -88,7 +97,7 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
   return (
     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 text-center hover:bg-white/20 transition border border-white/10">
       <div className="flex justify-center text-yellow-300 mb-3">{icon}</div>
-      <h3 className="text-lg font-bold text-white mb-1.5">{title}</h3>
+      <h3 className="text-lg font-bold text-white mb-1. 5">{title}</h3>
       <p className="text-sm text-white/80 leading-relaxed">{description}</p>
     </div>
   );

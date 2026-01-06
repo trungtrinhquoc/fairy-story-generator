@@ -33,6 +33,8 @@ from story_generator.utils import PerformanceTracker
 from story_generator.workers import task_manager
 from story_generator.workers.scene_worker import generate_remaining_scenes
 from story_generator.models.story import StoryGenerationStartResponse
+from story_generator.services.thumbnail_generator import ThumbnailGenerator
+from story_generator.services.character_name_extractor import CharacterNameExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,8 @@ router = APIRouter()
 story_gen = StoryGenerator()
 image_gen = ImageGenerator()
 voice_gen = VoiceGenerator()
+thumbnail_gen = ThumbnailGenerator()
+char_extractor = CharacterNameExtractor(db)
 
 # ========================================
 # HELPER FUNCTION: Tạo một scene
@@ -259,6 +263,46 @@ async def generate_story(request: StoryRequest):
             tracker.story_id = story_id  # ✅ FIX: Update tracker
             logger.info(f"✅ Story saved: {story_id}")
         
+        #2.1 Xử lý tên nhân vật (Extract & Unique check)
+        character_name = char_extractor.extract_name_from_design(character_design)
+        is_unique, suggested_name = await char_extractor.check_name_uniqueness(
+            character_name, 
+            settings.default_user_id
+        )
+        if not is_unique and suggested_name:
+            logger.warning(f"⚠️ Character name '{character_name}' exists, using '{suggested_name}'")
+            character_name = suggested_name
+
+        # 2.2 Tạo tiêu đề ngắn cho UI Mobile
+        short_title = story_data["title"][:27] + "..." if len(story_data["title"]) > 30 else story_data["title"]
+
+        # 2.3 Vẽ ảnh bìa Thumbnail 2:3 (Dùng tracker để theo dõi hiệu năng)
+        #with tracker.track_step("thumbnail_generation"):
+        thumbnail_bytes = await thumbnail_gen.generate_thumbnail(
+                title=story_data["title"],
+                short_title=short_title,
+                character_design=character_design,
+                background_design=background_design,
+                story_tone=request.story_tone.value
+            )
+
+        # Upload ảnh bìa lên Supabase Storage
+        thumbnail_path = f"{story_id}/thumbnail.webp"
+        thumbnail_url = await db.upload_file(
+            "story-images", 
+            thumbnail_path, 
+            thumbnail_bytes, 
+            "image/webp"
+            )    
+
+        # Cập nhật thông tin Thumbnail và Nhân vật vào bảng stories
+        await db.client.table("stories").update({
+            "thumbnail_url": thumbnail_url,
+            "short_title": short_title,
+            "character_name": character_name
+        }).eq("id", story_id).execute()
+            
+        logger.info(f"✅ Thumbnail & Character '{character_name}' updated for story")    
         # ========================================
         # STEP 3: Save Scenes to Database
         # ========================================
@@ -588,7 +632,34 @@ async def list_stories(limit: int = 10):
     
     return result
 
-
+@router.get("/", response_model=List[StoryListItem])
+async def get_user_stories(
+    user_id: Optional[str] = None,
+    limit: int = 20
+):
+    """Get list of user's stories with thumbnails."""
+    
+    uid = user_id or settings.default_user_id
+    
+    stories = await db.get_user_stories_with_thumbnails(uid, limit)
+    
+    # Format response
+    result = []
+    for story in stories:
+        result.append(StoryListItem(
+            id=story["id"],
+            title=story["title"],
+            short_title=story. get("short_title"),
+            thumbnail_url=story.get("thumbnail_url"),
+            character_name=story.get("character_name"),
+            theme_selected=story["theme_selected"],
+            status=story["status"],
+            cover_image_url=story.get("cover_image_url"),
+            created_at=story["created_at"],
+            scene_count=None  # Có thể query riêng nếu cần
+        ))
+    
+    return result
 def get_scene_count_from_length(story_length: str) -> int:
     """Helper to get scene count."""
     return {"short": 6, "medium": 10, "long": 14}.get(story_length, 6)

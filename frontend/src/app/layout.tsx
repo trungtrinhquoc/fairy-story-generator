@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Heart, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Fairy Story Generator",
-  description: "Create magical AI-powered stories for your child",
+  description:  "Create magical AI-powered stories for your child",
 };
 
 export default function RootLayout({
@@ -28,11 +29,27 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
         suppressHydrationWarning
       >
+        {/* ← THÊM MỚI: Simple Navigation (OPTIONAL) */}
+        <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+            <Link href="/" className="text-xl font-bold text-purple-600">
+              ✨ Fairy Story
+            </Link>
+            <Link 
+              href="/stories" 
+              className="text-sm font-medium text-purple-600 hover:text-purple-800 transition"
+            >
+              My Stories
+            </Link>
+          </div>
+        </nav>
+        
+        
         <main className="flex-grow">
           {children}
         </main>
 
-        {/* FOOTER SIÊU NHỎ GỌN - HÀNG NGANG */}
+        {/* FOOTER */}
         <footer className="w-full py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
           <div className="container mx-auto px-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             
@@ -41,7 +58,7 @@ export default function RootLayout({
               © 2025 FAIRY STORY AI
             </span>
 
-            {/* Author - Gradient nhỏ gọn */}
+            {/* Author */}
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
                 Handcrafted by
@@ -51,11 +68,11 @@ export default function RootLayout({
               </span>
             </div>
 
-            {/* Slogan & Icon */}
+            {/* Slogan */}
             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
               <div className="h-3 w-px bg-gray-200 hidden sm:block" />
               <span className="flex items-center gap-1">
-                MADE WITH <Heart className="w-2.5 h-2.5 text-pink-400 fill-pink-400" /> FOR KIDS
+                MADE WITH <Heart className="w-2. 5 h-2.5 text-pink-400 fill-pink-400" /> FOR KIDS
                 <Sparkles className="w-2.5 h-2.5 text-yellow-500" />
               </span>
             </div>
