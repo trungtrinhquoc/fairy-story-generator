@@ -483,5 +483,60 @@ class Database:
         except Exception as e:
             logger.error(f"❌ Failed to get story with progress: {e}")
             return None
+
+
+    async def update_story_thumbnail(
+        self,
+        story_id: str,
+        thumbnail_url: str,
+        short_title: str,
+        character_name: Optional[str] = None
+    ) -> bool:
+        """Update story thumbnail and metadata."""
+        
+        try:
+            update_data = {
+                "thumbnail_url": thumbnail_url,
+                "short_title": short_title
+            }
+            
+            if character_name:
+                update_data["character_name"] = character_name
+            
+            result = self.client.table("stories").update(
+                update_data
+            ).eq("id", story_id).execute()
+            
+            if result.data:
+                logger.info(f"✅ Thumbnail updated:  {story_id}")
+                return True
+            
+            return False
+        
+        except Exception as e: 
+            logger.error(f"❌ Thumbnail update failed: {e}")
+            return False
+
+
+    async def get_user_stories_with_thumbnails(
+        self,
+        user_id: str,
+        limit: int = 20
+    ) -> List[dict]:
+        """Get user stories with thumbnail data."""
+        
+        try:
+            response = self.client.table("stories")\
+                .select("id, title, short_title, thumbnail_url, character_name, theme_selected, status, created_at")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .limit(limit)\
+                .execute()
+            
+            return response.data or []
+        
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch stories: {e}")
+            return []
 # Global database instance
 db = Database()

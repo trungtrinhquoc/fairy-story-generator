@@ -24,6 +24,18 @@ export interface StoryProgressResponse {
   errorMessage?: string;  // ✅ camelCase
 }
 
+export interface StoryListItem {
+  id: string;
+  title: string;
+  shortTitle?: string;
+  thumbnailUrl?: string;
+  characterName?: string;
+  themeSelected: string;
+  status: 'generating' | 'completed' | 'failed';
+  coverImageUrl?: string;
+  createdAt: string;
+  sceneCount?: number;
+}
 /**
  * Generate a new story
  */
@@ -110,6 +122,28 @@ export async function getStory(storyId: string) {
 }
 
 /**
+ * Get list of user's stories
+ */
+export async function getStories(limit: number = 20): Promise<StoryListItem[]> {
+  console.log('🔗 API Call: GET /api/v1/stories/');
+  
+  const response = await fetch(`${API_BASE_URL}/api/v1/stories/? limit=${limit}`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    console.error(`❌ API Error: ${response.status} ${response.statusText}`);
+    throw new Error('Failed to fetch stories');
+  }
+
+  const data = await response.json();
+  console.log(`✅ Fetched ${data.length} stories`);
+  
+  return data;
+}
+/**
  * List all stories
  */
 export async function listStories(limit: number = 10) {
@@ -137,4 +171,5 @@ export const storyApi = {
   getStoryProgress,
   getStory,
   listStories,
+  getStories,
 };

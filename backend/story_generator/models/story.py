@@ -170,6 +170,9 @@ class StoryResponse(BaseModel):
     id: str
     user_id: str
     title: str
+    short_title: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    character_name: Optional[str] = None
     story_length: str
     story_tone: str
     theme_selected: str
@@ -187,6 +190,9 @@ class StoryListItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     id: str
     title: str
+    short_title: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    character_name: Optional[str] = None
     theme_selected: str
     status: StoryStatus
     cover_image_url: Optional[str] = None
