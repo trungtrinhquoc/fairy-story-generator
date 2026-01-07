@@ -263,46 +263,60 @@ async def generate_story(request: StoryRequest):
             tracker.story_id = story_id  # ✅ FIX: Update tracker
             logger.info(f"✅ Story saved: {story_id}")
         
-        #2.1 Xử lý tên nhân vật (Extract & Unique check)
-        character_name = char_extractor.extract_name_from_design(character_design)
-        is_unique, suggested_name = await char_extractor.check_name_uniqueness(
-            character_name, 
-            settings.default_user_id
-        )
-        if not is_unique and suggested_name:
-            logger.warning(f"⚠️ Character name '{character_name}' exists, using '{suggested_name}'")
-            character_name = suggested_name
-
-        # 2.2 Tạo tiêu đề ngắn cho UI Mobile
-        short_title = story_data["title"][:27] + "..." if len(story_data["title"]) > 30 else story_data["title"]
-
-        # 2.3 Vẽ ảnh bìa Thumbnail 2:3 (Dùng tracker để theo dõi hiệu năng)
-        #with tracker.track_step("thumbnail_generation"):
-        thumbnail_bytes = await thumbnail_gen.generate_thumbnail(
+# ✅ THÊM MỚI:  STEP 2. 5: Generate Thumbnail & Extract Character Name
+        with tracker.track_step("thumbnail_generation"):
+            from story_generator.services.thumbnail_generator import ThumbnailGenerator
+            from story_generator.services.character_name_extractor import CharacterNameExtractor
+            
+            thumbnail_gen = ThumbnailGenerator()
+            char_extractor = CharacterNameExtractor(db)
+            
+            # Extract character name
+            character_name = char_extractor.extract_name_from_design(character_design)
+            
+            # Check uniqueness (optional - có thể bỏ nếu không cần)
+            if character_name:
+                is_unique, suggested_name = await char_extractor.check_name_uniqueness(
+                    character_name,
+                    settings.default_user_id
+                )
+                if not is_unique and suggested_name:
+                    logger.warning(f"⚠️ Character name '{character_name}' exists, using '{suggested_name}'")
+                    character_name = suggested_name
+            
+            # Create short title
+            short_title = story_data["title"][: 27] + "..." if len(story_data["title"]) > 30 else story_data["title"]
+            
+            # Generate thumbnail
+            thumbnail_bytes = await thumbnail_gen.generate_thumbnail(
                 title=story_data["title"],
                 short_title=short_title,
                 character_design=character_design,
                 background_design=background_design,
                 story_tone=request.story_tone.value
             )
-
-        # Upload ảnh bìa lên Supabase Storage
-        thumbnail_path = f"{story_id}/thumbnail.webp"
-        thumbnail_url = await db.upload_file(
-            "story-images", 
-            thumbnail_path, 
-            thumbnail_bytes, 
-            "image/webp"
-            )    
-
-        # Cập nhật thông tin Thumbnail và Nhân vật vào bảng stories
-        db.client.table("stories").update({
-            "thumbnail_url": thumbnail_url,
-            "short_title": short_title,
-            "character_name": character_name
-        }).eq("id", story_id).execute()
             
-        logger.info(f"✅ Thumbnail & Character '{character_name}' updated for story")    
+            # Upload thumbnail
+            thumbnail_url = None
+            if thumbnail_bytes: 
+                thumbnail_path = f"{story_id}/thumbnail.webp"
+                thumbnail_url = await db.upload_file(
+                    "story-images",
+                    thumbnail_path,
+                    thumbnail_bytes,
+                    "image/webp"
+                )
+            
+            # Update story with thumbnail data
+            if thumbnail_url:
+                await db.update_story_thumbnail(
+                    story_id=story_id,
+                    thumbnail_url=thumbnail_url,
+                    short_title=short_title,
+                    character_name=character_name
+                )
+                logger.info(f"✅ Thumbnail & Character '{character_name}' updated for story")
+        
         # ========================================
         # STEP 3: Save Scenes to Database
         # ========================================
@@ -390,9 +404,13 @@ async def generate_story(request: StoryRequest):
         # ========================================
         # STEP 7: Return Response (Scene 1 only)
         # ========================================
+        updated_story = await db.get_story(story_id)
         return StoryGenerationStartResponse(
             story_id=story_id,
             title=story_data["title"],
+            short_title=updated_story.get("short_title"),          # ✅ THÊM
+            thumbnail_url=updated_story.get("thumbnail_url"),      # ✅ THÊM
+            character_name=updated_story.get("character_name"),    # ✅ THÊM
             status="generating",
             progress=ProgressInfo(
                 completed=1,

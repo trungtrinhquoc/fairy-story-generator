@@ -387,6 +387,21 @@ class StoryGenerationStartResponse(BaseModel):
     
     title: str = Field(description="Tiêu đề story")
     
+    short_title: Optional[str] = Field(
+        default=None,
+        description="Tiêu đề rút gọn cho thumbnail (max 30 chars)"
+    )
+    
+    thumbnail_url: Optional[str] = Field(
+        default=None,
+        description="URL của thumbnail (600x900px, 2: 3 ratio)"
+    )
+    
+    character_name: Optional[str] = Field(
+        default=None,
+        description="Tên nhân vật chính"
+    )
+    
     status: str = Field(
         default="generating",
         description="Luôn là 'generating' khi mới bắt đầu"
