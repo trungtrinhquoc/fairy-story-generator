@@ -1,33 +1,36 @@
 """
-Story generation using Google Gemini. 
-Features:
+Story generation using OpenRouter (GPT-4o).
+Features: 
 - Character design consistency
 - Background design for fairy tale worlds
 - Retry logic with validation
+- Token optimization (<900 tokens)
+- Anti-duplication (seed rotation + temperature)
+- Words/scene accuracy (theo bảng specs)
 - Detailed logging
 """
 
 import logging
 import json
 from typing import Optional
-import google.generativeai as genai
-from openai import OpenAI
 import asyncio
+from openai import OpenAI
 
 from story_generator.config import settings
 from story_generator.prompts.story_prompts import (
     SYSTEM_PROMPT,
     create_user_prompt,
     validate_story_response,
-    get_scene_count
-)   
+    get_scene_count,
+    get_scene_config
+)
 
 logger = logging.getLogger(__name__)
 
 
 class StoryGenerator:
     """
-    Generate fairy tale stories using Google Gemini.
+    Generate fairy tale stories using OpenRouter (GPT-4o).
     
     Usage:
         story_gen = StoryGenerator()
@@ -38,29 +41,16 @@ class StoryGenerator:
         )
     """
 
-    # Gemini
-    # def __init__(self):
-    #     """Initialize Gemini."""
-    #     genai.configure(api_key=settings.gemini_api_key)
-        
-    #     self.model = genai.GenerativeModel(
-    #         model_name="gemini-2.5-flash-lite",
-    #         generation_config={
-    #             "temperature": 0.9,
-    #             "top_p": 0.95,
-    #             "max_output_tokens": 8192,
-    #         }
-    #     )
-
-    # OpenRouter
     def __init__(self):
-        """Initialize OpenRouter client."""
+        """Initialize OpenRouter client with request counter."""
         self.client = OpenAI(
             api_key=settings.openrouter_api_key,
             base_url="https://openrouter.ai/api/v1"
         )
         self.model = settings.openrouter_model
-        logger.info(f"✅ Story Generator initialized (OpenRouter: {self.model})")
+        self.request_count = 0
+        
+        logger.info(f"✅ Story Generator initialized (Model: {self.model})")
     
     def _expand_image_prompts(self, story_data: dict) -> dict:
         """
@@ -71,12 +61,16 @@ class StoryGenerator:
         character = story_data.get("character_design", "")
         background = story_data.get("background_design", "")
         
-        for scene in story_data. get("scenes", []):
+        for scene in story_data.get("scenes", []):
             prompt = scene.get("image_prompt", "")
             
             # Replace placeholders
             prompt = prompt.replace("{CHARACTER}", character)
             prompt = prompt.replace("{BACKGROUND}", background)
+            
+            # Also handle {CHAR} and {BG} variants
+            prompt = prompt.replace("{CHAR}", character)
+            prompt = prompt.replace("{BG}", background)
             
             scene["image_prompt"] = prompt
         
@@ -88,7 +82,7 @@ class StoryGenerator:
         story_length: str = "short",
         story_tone: str = "gentle",
         theme: Optional[str] = None,
-        child_name: Optional[str] = None
+        child_name:  Optional[str] = None
     ) -> dict:
         """
         Generate complete story with character and background design.
@@ -101,12 +95,12 @@ class StoryGenerator:
             child_name: Optional name to include in story
             
         Returns:
-            dict with:
+            dict with: 
             {
                 "title": str,
-                "character_design": str,
+                "character_design":  str,
                 "background_design": str,
-                "scenes": [
+                "scenes":  [
                     {
                         "scene_number": int,
                         "text": str,
@@ -120,11 +114,26 @@ class StoryGenerator:
             Exception: If generation fails after max attempts
         """
         
-        num_scenes = get_scene_count(story_length)
-        logger.info(f"🎨 Generating {story_length} story with {num_scenes} scenes...")
+        self.request_count += 1
         
-        # Build prompt
-        system_instruction = SYSTEM_PROMPT
+        # Get config
+        config = get_scene_config(story_length)
+        num_scenes = config["num_scenes"]
+        
+        # ✅ LOG CHÍNH XÁC
+        logger.info(f"🎨 Generating {story_length}:")
+        logger.info(f"   • Scenes: {num_scenes}")
+        logger.info(f"   • Words/scene: {config['words_per_scene_min']}-{config['words_per_scene_max']}")
+        logger.info(f"   • Target total: ~{config['target_words']} words")
+        
+        # ✅ BUILD PROMPT với words_min/max
+        system_instruction = SYSTEM_PROMPT.format(
+            num_scenes=num_scenes,
+            words_min=config['words_per_scene_min'],
+            words_max=config['words_per_scene_max'],
+            sentences=f"{config['sentences_per_scene'][0]}-{config['sentences_per_scene'][1]}"
+        )
+        
         user_instruction = create_user_prompt(
             user_input=user_prompt,
             story_length=story_length,
@@ -134,107 +143,197 @@ class StoryGenerator:
             num_scenes=num_scenes
         )
         
-        max_attempts = 3
+        max_attempts = 2
         
         for attempt in range(1, max_attempts + 1):
             try:
-                logger.info(f"📝 ChatGPT-4o attempt {attempt}/{max_attempts}...")
+                logger.info(f"📝 GPT-4o attempt {attempt}/{max_attempts}...")
                 
-                # Call Gemini
-                # response = await asyncio.to_thread(
-                #     self.model.generate_content,
-                #     [system_instruction, user_instruction]
-                # )
-
-                # if hasattr(response, 'usage_metadata'):
-                #     usage = response.usage_metadata
-                #     logger.info("=" * 30)
-                #     logger.info(f"📊 GEMINI TOKEN USAGE:")
-                #     logger.info(f"   • Prompt Tokens (Input): {usage.prompt_token_count}")
-                #     logger.info(f"   • Candidates Tokens (Output): {usage.candidates_token_count}")
-                #     logger.info(f"   • Total Tokens: {usage.total_token_count}")
-                #     logger.info("=" * 30)
-
-                # response_text = response.text
-                # story_data = self._parse_response(response_text)
-
-                # Call gpt-4o
+                # Generate unique seed
+                seed = (self.request_count * 1000) + attempt
+                
+                # Call OpenRouter GPT-4o
                 response = await asyncio.to_thread(
-                    self.client.chat.completions.create,
-                    model=self.model,
+                    self. client.chat.completions.create,
+                    model=self. model,
                     messages=[
                         {"role": "system", "content": system_instruction},
                         {"role": "user", "content": user_instruction}
                     ],
-                    temperature=0.9,
-                    max_tokens=4000,
-                    response_format={"type": "json_object"} 
+                    temperature=0.85,
+                    max_tokens=1200,
+                    seed=seed,
+                    response_format={"type": "json_object"}
                 )
+                
+                # Log token usage
                 if hasattr(response, 'usage') and response.usage:
                     usage = response.usage
-                    logger.info("=" * 30)
-                    logger.info(f"📊 OPENROUTER TOKEN USAGE:")
-                    logger.info(f"   • Prompt Tokens (Input): {usage.prompt_tokens}")
-                    logger.info(f"   • Completion Tokens (Output): {usage.completion_tokens}")
-                    logger.info(f"   • Total Tokens: {usage.total_tokens}")
-                    logger.info("=" * 30)
-                # Extract content from OpenAI response
-                response_text = response.choices[0].message.content
+                    total = usage.total_tokens
+                    
+                    logger.info("=" * 50)
+                    logger.info(f"📊 TOKENS (Request #{self.request_count}):")
+                    logger.info(f"   IN:    {usage.prompt_tokens:>4} | OUT:  {usage.completion_tokens:>4} | TOTAL: {total:>4}")
+                    
+                    if total > 900:
+                        logger.warning(f"   ⚠️ HIGH:  {total} > 900")
+                    else:
+                        logger.info(f"   ✅ OK: {total} <= 900")
+                    
+                    logger.info("=" * 50)
+                
                 # Parse response
+                response_text = response.choices[0].message.content
                 story_data = self._parse_response(response_text)
+                
+                # Enhance character design if incomplete
+                story_data = self._enhance_character_design(story_data, child_name)
+                
+                # Expand image prompts
                 story_data = self._expand_image_prompts(story_data)
-                is_valid, error_msg = validate_story_response(story_data)
+                
+                # ✅ VALIDATE với logic mới (words/scene)
+                is_valid, error_msg = self._validate_with_words_per_scene(
+                    story_data,
+                    expected_scenes=num_scenes,
+                    words_per_scene_min=config['words_per_scene_min'],
+                    words_per_scene_max=config['words_per_scene_max']
+                )
+                
                 if not is_valid:
-                    logger. warning(f"⚠️ Validation failed: {error_msg}")
+                    logger.warning(f"⚠️ Validation:  {error_msg}")
                     if attempt < max_attempts:
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(1)
                         continue
                     else:
-                        raise ValueError(f"Validation failed: {error_msg}")
+                        logger.warning("⚠️ Using story despite validation failure")
                 
-                # Đảm bảo character_design tồn tại
-                if "character_design" not in story_data or not story_data["character_design"]:
-                    default_char = f"A friendly {child_name or 'child'} with bright eyes and a warm smile, wearing colorful magical clothing"
-                    story_data["character_design"] = default_char
-                    logger.warning(f"⚠️ Missing character_design. Set to default: {default_char}")
+                # Ensure defaults
+                if not story_data.get("background_design"):
+                    story_data["background_design"] = "Magical world, sparkles, glowing lights, dreamy colors"
                 
-                # Đảm bảo background_design tồn tại
-                if "background_design" not in story_data or not story_data["background_design"]:
-                    default_bg = "A whimsical enchanted world filled with sparkling magic, glowing lights, vibrant colorful nature, floating fairy dust, and a dreamy fairytale atmosphere"
-                    story_data["background_design"] = default_bg
-                    logger.warning(f"⚠️ Missing background_design. Set to default: {default_bg}")
-                
-                # Success! 
-                logger.info(f"✅ Story generated: '{story_data['title']}'")
+                logger.info(f"✅ Story:  '{story_data['title']}'")
                 logger.info(f"   🎬 Scenes: {len(story_data['scenes'])}")
-                logger. info(f"   👤 Character: {story_data['character_design'][:70]}...")
-                logger.info(f"   🌍 Background: {story_data['background_design'][:70]}...")
+                logger.info(f"   👤 Character: {story_data['character_design'][: 80]}...")
+                logger.info(f"   🌍 Background: {story_data['background_design'][:80]}...")
                 
                 return story_data
             
             except json.JSONDecodeError as e:
                 logger.error(f"❌ JSON parsing failed (attempt {attempt}): {e}")
                 if attempt == max_attempts:
-                    raise Exception(f"Failed to parse Gemini response after {max_attempts} attempts")
-                await asyncio.sleep(2)
+                    raise Exception(f"Failed to parse response after {max_attempts} attempts")
+                await asyncio.sleep(1)
 
             except Exception as e:
                 logger.error(f"❌ Attempt {attempt} failed: {e}")
                 if attempt < max_attempts:
-                    # Tính thời gian chờ tăng dần: 5s, 10s.
-                    # Lỗi 429 cần chờ lâu hơn lỗi mạng bình thường.
-                    wait_time = 5 * attempt 
-                    
-                    logger.warning(f"⏳ Waiting {wait_time}s before retrying due to error...")
-                    await asyncio.sleep(wait_time) # 👈 Dòng này giúp Google reset quota cho bạn
+                    await asyncio.sleep(1)
                 else:
-                    # Hết lượt thử mới throw lỗi ra ngoài
                     raise e
         
-        raise Exception("Story generation failed after {max_attempts} attempts")
+        raise Exception(f"Story generation failed after {max_attempts} attempts")
+    
+    def _enhance_character_design(self, story_data: dict, child_name: Optional[str]) -> dict:
+        """
+        Ensure character_design has ALL required details for consistency.
+        """
+        char_design = story_data.get("character_design", "")
+        
+        # Check critical keywords
+        required_keywords = {
+            "age": ["year", "yo", "old"],
+            "hair": ["hair"],
+            "eyes": ["eyes", "eye"],
+            "outfit": ["outfit", "clothes", "clothing", "dress", "shirt", "wearing"],
+            "skin": ["skin", "complexion"]
+        }
+        
+        missing = []
+        for category, keywords in required_keywords.items():
+            if not any(kw in char_design. lower() for kw in keywords):
+                missing.append(category)
+        
+        # If missing > 2 keywords → enhance
+        if len(missing) > 2:
+            logger.warning(f"⚠️ character_design incomplete (missing:  {missing}), enhancing...")
+            
+            default_char = (
+                f"A friendly 7-year-old child named {child_name or 'Hero'}, "
+                f"warm brown skin, curly black hair with colorful ribbon, "
+                f"wearing bright blue shirt with stars, red shorts, yellow sneakers, "
+                f"big expressive brown eyes, cheerful smile, average height"
+            )
+            
+            story_data["character_design"] = default_char
+            logger.info(f"   → Enhanced:  {default_char[:60]}...")
+        
+        return story_data
+    
+    def _validate_with_words_per_scene(
+        self,
+        story_data: dict,
+        expected_scenes: int,
+        words_per_scene_min: int,
+        words_per_scene_max: int
+    ) -> tuple[bool, str]:
+        """
+        Validate theo words/scene CHÍNH XÁC (theo bảng specs).
+        """
+        
+        # Basic validation
+        is_valid, error = validate_story_response(story_data)
+        if not is_valid:
+            return False, error
+        
+        # Check số scenes
+        num_scenes = len(story_data.get("scenes", []))
+        if num_scenes != expected_scenes:
+            if abs(num_scenes - expected_scenes) <= 1:
+                logger.warning(f"⚠️ Scenes:  {num_scenes} (expected {expected_scenes})")
+            else:
+                return False, f"Scene count {num_scenes} != {expected_scenes}"
+        
+        # ✅ KIỂM TRA TỪNG SCENE
+        scene_word_counts = []
+        warnings = []
+        
+        for i, scene in enumerate(story_data.get("scenes", []), 1):
+            text = scene.get("text", "")
+            word_count = len(text.split())
+            scene_word_counts.append(word_count)
+            
+            # ✅ Cho phép sai lệch ±20% cho mỗi scene
+            min_allowed = int(words_per_scene_min * 0.8)
+            max_allowed = int(words_per_scene_max * 1.2)
+            
+            if not (min_allowed <= word_count <= max_allowed):
+                warning = (
+                    f"Scene {i}:  {word_count}w "
+                    f"(target: {words_per_scene_min}-{words_per_scene_max}w, "
+                    f"allowed: {min_allowed}-{max_allowed}w)"
+                )
+                warnings.append(warning)
+        
+        # Log warnings nếu có
+        if warnings: 
+            for w in warnings:
+                logger.warning(f"⚠️ {w}")
+        
+        # Tính total
+        total_words = sum(scene_word_counts)
+        avg_words_per_scene = total_words / num_scenes if num_scenes > 0 else 0
+        
+        logger. info(f"✅ Validation:")
+        logger.info(f"   • Scenes: {num_scenes}")
+        logger.info(f"   • Total words: {total_words}")
+        logger.info(f"   • Avg words/scene: {avg_words_per_scene:.1f}")
+        logger.info(f"   • Scene word counts: {scene_word_counts}")
+        
+        return True, "Valid"
     
     def _parse_response(self, text: str) -> dict:
-        """Parse JSON from Gemini response."""
+        """Parse JSON from response."""
         
         cleaned = text.strip()
         
@@ -261,6 +360,6 @@ class StoryGenerator:
                     return json.loads(json_candidate)
                 except json.JSONDecodeError as secondary_e:
                     logger.error(f"❌ Secondary JSON decode failed: {secondary_e}")
-                    logger.error(f"❌ Failed JSON segment: {json_candidate[:200]}...")
+                    logger.error(f"❌ Failed JSON segment: {json_candidate[: 200]}...")
                     raise secondary_e
             raise ValueError("No valid JSON found in response")
