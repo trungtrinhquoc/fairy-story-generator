@@ -296,7 +296,7 @@ async def generate_story(request: StoryRequest):
             )    
 
         # Cập nhật thông tin Thumbnail và Nhân vật vào bảng stories
-        await db.client.table("stories").update({
+        db.client.table("stories").update({
             "thumbnail_url": thumbnail_url,
             "short_title": short_title,
             "character_name": character_name
