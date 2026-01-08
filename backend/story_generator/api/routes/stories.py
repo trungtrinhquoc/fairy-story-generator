@@ -263,7 +263,7 @@ async def generate_story(request: StoryRequest):
             tracker.story_id = story_id  # ✅ FIX: Update tracker
             logger.info(f"✅ Story saved: {story_id}")
         
-# ✅ THÊM MỚI:  STEP 2. 5: Generate Thumbnail & Extract Character Name
+        # ✅ THÊM MỚI:  STEP 2. 5: Generate Thumbnail & Extract Character Name
         with tracker.track_step("thumbnail_generation"):
             from story_generator.services.thumbnail_generator import ThumbnailGenerator
             from story_generator.services.character_name_extractor import CharacterNameExtractor
@@ -271,8 +271,11 @@ async def generate_story(request: StoryRequest):
             thumbnail_gen = ThumbnailGenerator()
             char_extractor = CharacterNameExtractor(db)
             
-            # Extract character name
-            character_name = char_extractor.extract_name_from_design(character_design)
+            # Extract character name (with background context for better detection)
+            character_name = char_extractor.extract_name_from_design(
+                character_design,
+                background_design
+            )
             
             # Check uniqueness (optional - có thể bỏ nếu không cần)
             if character_name:
