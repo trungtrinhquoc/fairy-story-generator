@@ -18,7 +18,7 @@ from openai import OpenAI
 
 from story_generator.config import settings
 from story_generator.prompts.story_prompts import (
-    SYSTEM_PROMPT,
+    create_system_prompt,  
     create_user_prompt,
     validate_story_response,
     get_scene_count,
@@ -126,12 +126,11 @@ class StoryGenerator:
         logger.info(f"   • Words/scene: {config['words_per_scene_min']}-{config['words_per_scene_max']}")
         logger.info(f"   • Target total: ~{config['target_words']} words")
         
-        # ✅ BUILD PROMPT với words_min/max
-        system_instruction = SYSTEM_PROMPT.format(
-            num_scenes=num_scenes,
-            words_min=config['words_per_scene_min'],
-            words_max=config['words_per_scene_max'],
-            sentences=f"{config['sentences_per_scene'][0]}-{config['sentences_per_scene'][1]}"
+        # ✅ BUILD ENHANCED SYSTEM PROMPT với title uniqueness
+        system_instruction = create_system_prompt(
+            story_length=story_length,
+            user_input=user_prompt,
+            theme=theme
         )
         
         user_instruction = create_user_prompt(
@@ -147,7 +146,7 @@ class StoryGenerator:
         
         for attempt in range(1, max_attempts + 1):
             try:
-                logger.info(f"📝 GPT-4o attempt {attempt}/{max_attempts}...")
+                logger.info(f"📝 Gemini-3-flash-preview attempt {attempt}/{max_attempts}...")
                 
                 # Generate unique seed
                 seed = (self.request_count * 1000) + attempt
@@ -161,7 +160,7 @@ class StoryGenerator:
                         {"role": "user", "content": user_instruction}
                     ],
                     temperature=0.85,
-                    max_tokens=1200,
+                    max_tokens=1500,
                     seed=seed,
                     response_format={"type": "json_object"}
                 )
@@ -183,7 +182,9 @@ class StoryGenerator:
                     logger.info("=" * 50)
                 
                 # Parse response
+               
                 response_text = response.choices[0].message.content
+                logger.debug(f"📄 Response preview: {response_text[:200]}...")
                 story_data = self._parse_response(response_text)
                 
                 # Enhance character design if incomplete
@@ -223,12 +224,12 @@ class StoryGenerator:
                 logger.error(f"❌ JSON parsing failed (attempt {attempt}): {e}")
                 if attempt == max_attempts:
                     raise Exception(f"Failed to parse response after {max_attempts} attempts")
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
 
             except Exception as e:
                 logger.error(f"❌ Attempt {attempt} failed: {e}")
                 if attempt < max_attempts:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(2)
                 else:
                     raise e
         
