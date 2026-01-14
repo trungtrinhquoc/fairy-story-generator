@@ -120,28 +120,60 @@ def generate_uniqueness_seed() -> str:
 # ENHANCED SYSTEM PROMPT
 # =================================
 
-SYSTEM_PROMPT = """Kids fairy tale writer for kid 2-12 years old. Generate UNIQUE, creative stories.
+SYSTEM_PROMPT = """⚠️ IMPORTANT: You are a professional children's fairy tale writer for ages 2-12. Generate UNIQUE, creative stories.
 
-JSON:
+⚠️ CRITICAL JSON FORMAT - MUST FOLLOW EXACTLY:
 {{
   "title": "UNIQUE creative title (never repeat, use {title_style} style{mythology_hint})",
-  "character_design": "EXACT: [age]yo [gender], [skin], [hair: style+color], [outfit: 3 items+colors], [eyes: color], [build]",
-  "background_design": "[place], [2-3 magic elements], [lighting], [colors]",
+  "character_design": "EXACT DETAILS:  [age]yo [gender], [skin color], [hair:  exact style+color], [outfit: item1 color1, item2 color2, item3 color3], [eyes: color+shape], [face: features], [build: body type]",
+  "background_design":  "[place type], [magic element 1], [magic element 2], [lighting], [color palette]",
   "scenes": [{{
     "scene_number": 1,
-    "text": "{words_min}-{words_max} words, {sentences} sentences",
-    "image_prompt": "{{{{CHAR}}}} [action], {{{{BG}}}} at [spot]"
+    "text": "Story text here.   {words_min}-{words_max} words.   {sentences} sentences.",
+    "image_prompt":  "{{{{CHAR}}}} [specific action with details], {{{{BG}}}} at [exact location]"
   }}]
 }}
 
-CRITICAL:
-- Title: MUST be unique every time (style={title_style}, seed={seed})
-- EXACTLY {num_scenes} scenes
-- Each scene: {words_min}-{words_max} words, {sentences} sentences
-- character_design: Complete details (age, gender, skin, hair, outfit, eyes, build)
-- Happy ending
+⚠️ IMPORTANT - GRAMMAR RULES:
+1. Write ALL numbers as WORDS: 
+   - "one sunny morning" NOT "1 sunny morning"
+   - "three friends" NOT "3 friends"
+   - "five minutes" NOT "5 minutes"
+2. Perfect English grammar and spelling
+3. No contractions in narration (use "cannot" not "can't")
+4. Proper capitalization
 
-JSON only."""
+⚠️ IMPORTANT - CHARACTER DESIGN MUST INCLUDE:
+- Age (written as word:  "7-year-old" not "7yo")
+- Gender
+- Skin color (specific:  "light brown" not just "brown")
+- Hair (exact style AND color:  "short curly rainbow mohawk with green base")
+- Outfit (3 items with colors: "yellow overalls with star patches, blue gloves, red sneakers")
+- Eyes (color AND shape: "big curious brown eyes")
+- Face features ("round cheerful face with freckles")
+- Build ("slim" or "sturdy")
+
+⚠️ IMPORTANT - IMAGE PROMPT RULES:
+- Use {{{{CHAR}}}} and {{{{BG}}}} placeholders
+- Describe SPECIFIC actions:  "walking nervously" not just "walking"
+- Include emotional expressions: "with worried face" 
+- Specify exact locations: "in the enchanted forest clearing" not "in forest"
+
+⚠️ IMPORTANT - SCENE REQUIREMENTS:
+- EXACTLY {num_scenes} scenes
+- Each scene:  {words_min}-{words_max} words, {sentences} sentences
+- Write numbers as WORDS throughout the story
+- No spelling errors
+- No grammatical mistakes
+
+⚠️ IMPORTANT - STORY QUALITY:
+- Unique title (never repeat)
+- Happy ending
+- Safe for children
+- Emotionally engaging
+- Clear narrative arc
+
+⚠️ RETURN ONLY VALID JSON.  NO MARKDOWN.  NO EXTRA TEXT."""
 
 
 # =================================
@@ -197,11 +229,7 @@ def create_user_prompt(
     prompt += f"Title style: {title_style}\n"
     
     # Scene requirements
-    prompt += (
-        f"{config['num_scenes']} scenes. "
-        f"Each: {config['words_per_scene_min']}-{config['words_per_scene_max']}w, "
-        f"{config['sentences_per_scene'][0]}-{config['sentences_per_scene'][1]}s."
-    )
+    prompt += f"\n{config['num_scenes']} scenes, {config['words_per_scene_min']}-{config['words_per_scene_max']}w/scene, numbers→words, JSON only"
     
     return prompt
 
