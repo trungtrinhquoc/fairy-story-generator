@@ -142,7 +142,7 @@ class StoryGenerator:
             num_scenes=num_scenes
         )
         
-        max_attempts = 2
+        max_attempts = 3
         
         for attempt in range(1, max_attempts + 1):
             try:
@@ -152,19 +152,21 @@ class StoryGenerator:
                 seed = (self.request_count * 1000) + attempt
                 
                 # Call OpenRouter GPT-4o
-                response = await asyncio.to_thread(
-                    self. client.chat.completions.create,
-                    model=self. model,
-                    messages=[
-                        {"role": "system", "content": system_instruction},
-                        {"role": "user", "content": user_instruction}
-                    ],
-                    temperature=0.85,
-                    max_tokens=1500,
-                    seed=seed,
-                    response_format={"type": "json_object"}
+                response = await asyncio.wait_for(
+                        asyncio.to_thread(
+                        self. client.chat.completions.create,
+                        model=self. model,
+                        messages=[
+                            {"role": "system", "content": system_instruction},
+                            {"role": "user", "content": user_instruction}
+                        ],
+                        temperature=0.85,
+                        max_tokens=1400,
+                        seed=seed,
+                        response_format={"type": "json_object"}
+                    ),
+                    timeout = 25.0
                 )
-                
                 # Log token usage
                 if hasattr(response, 'usage') and response.usage:
                     usage = response.usage
@@ -174,19 +176,27 @@ class StoryGenerator:
                     logger.info(f"📊 TOKENS (Request #{self.request_count}):")
                     logger.info(f"   IN:    {usage.prompt_tokens:>4} | OUT:  {usage.completion_tokens:>4} | TOTAL: {total:>4}")
                     
-                    if total > 900:
-                        logger.warning(f"   ⚠️ HIGH:  {total} > 900")
+                    if usage.completion_tokens > 800:
+                        logger.warning(f"   ⚠️ OUTPUT HIGH:   {usage.completion_tokens} > 800")
+                    if total > 1100:
+                        logger.warning(f"   ⚠️ TOTAL HIGH:  {total} > 1100")
                     else:
-                        logger.info(f"   ✅ OK: {total} <= 900")
-                    
+                        logger.info(f"   ✅ OK:  {total} <= 1100")
                     logger.info("=" * 50)
-                
                 # Parse response
-               
+                if not hasattr(response, 'choices') or len(response.choices) == 0:
+                    raise ValueError("Response has no choices")
+
                 response_text = response.choices[0].message.content
+
+                if not response_text or response_text.strip() == "":
+                    raise ValueError("Empty response text")
+
                 logger.debug(f"📄 Response preview: {response_text[:200]}...")
                 story_data = self._parse_response(response_text)
                 
+                if not isinstance(story_data, dict):
+                    raise TypeError(f"Response is {type(story_data)}, expected dict.  Content: {str(story_data)[:200]}")
                 # Enhance character design if incomplete
                 story_data = self._enhance_character_design(story_data, child_name)
                 
@@ -204,7 +214,7 @@ class StoryGenerator:
                 if not is_valid:
                     logger.warning(f"⚠️ Validation:  {error_msg}")
                     if attempt < max_attempts:
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(2)
                         continue
                     else:
                         logger.warning("⚠️ Using story despite validation failure")
@@ -220,16 +230,31 @@ class StoryGenerator:
                 
                 return story_data
             
-            except json.JSONDecodeError as e:
-                logger.error(f"❌ JSON parsing failed (attempt {attempt}): {e}")
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Timeout (attempt {attempt}): Request took > 30s")
                 if attempt == max_attempts:
-                    raise Exception(f"Failed to parse response after {max_attempts} attempts")
+                    raise Exception("Request timeout after 3 attempts")
+                await asyncio.sleep(3)
+            
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ JSON parse failed (attempt {attempt}): {e}")
+                logger.error(f"   Response: {response_text[: 500] if 'response_text' in locals() else 'N/A'}")
+                if attempt == max_attempts:
+                    raise Exception(f"Invalid JSON after {max_attempts} attempts.  Response: {response_text[:200] if 'response_text' in locals() else 'N/A'}")
+                await asyncio. sleep(2)
+            
+            except (TypeError, ValueError, AttributeError) as e:
+                logger.error(f"❌ Data structure error (attempt {attempt}): {e}")
+                logger.error(f"   Data type: {type(story_data) if 'story_data' in locals() else 'N/A'}")
+                logger.error(f"   Response: {response_text[:300] if 'response_text' in locals() else 'N/A'}")
+                if attempt == max_attempts:
+                    raise Exception(f"Invalid data structure:  {e}")
                 await asyncio.sleep(2)
 
             except Exception as e:
-                logger.error(f"❌ Attempt {attempt} failed: {e}")
+                logger.error(f"❌ Attempt {attempt} failed: {e}", exc_info=True)
                 if attempt < max_attempts:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(3)
                 else:
                     raise e
         

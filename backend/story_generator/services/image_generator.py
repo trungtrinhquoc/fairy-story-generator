@@ -127,10 +127,12 @@ class ImageGenerator:
         
         # Consistency keywords
         consistency_keywords = (
-            "SAME character throughout story, "
-            "consistent character design, "
-            "character continuity, "
-            "exact same appearance"
+            "IMPORTANT:  MAINTAIN EXACT SAME CHARACTER APPEARANCE IN ALL SCENES, "
+            "IDENTICAL character design throughout the story, "
+            "CONSISTENT facial features, hair style, hair color, outfit, skin tone, "
+            "DO NOT change any character physical features, "
+            "SAME character as described in previous scenes, "
+            "character continuity is CRITICAL"
         )
         
         # Fairy tale atmosphere keywords
@@ -151,8 +153,8 @@ class ImageGenerator:
 
         # Build final prompt
         final_prompt = (
+            f"{consistency_keywords} "
             f"{base_prompt}. "
-            f"{consistency_keywords}, "
             f"{fairytale_keywords}, "
             f"{quality_keywords}"
         )
@@ -160,13 +162,15 @@ class ImageGenerator:
         if base_style:
             final_prompt += f", {base_style}"
 
+        if len(final_prompt) > 1500:
+            final_prompt = final_prompt[:1500]
         # ==========================================
         # FALLBACK PROMPTS
         # ==========================================
         
         fallback_prompts = [
             final_prompt,
-            f"{base_prompt}.  Magical fairytale scene, Pixar style, bright colors, safe for children."
+            f"SAME character design:  {base_prompt}.  Magical fairytale, Pixar style, consistent character, bright colors, safe for children."
         ]
         
         # ==========================================
