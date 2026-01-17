@@ -148,8 +148,12 @@ class StoryGenerator:
             try:
                 logger.info(f"📝 Gemini-3-flash-preview attempt {attempt}/{max_attempts}...")
                 
-                # Generate unique seed
-                seed = (self.request_count * 1000) + attempt
+                # ✅ Generate TRULY UNIQUE seed with timestamp + random
+                import time
+                import random
+                timestamp = int(time.time() * 1000000) % 1000000
+                random_part = random.randint(0, 999999)
+                seed = (self.request_count * 1000000) + (attempt * 1000) + timestamp + random_part
                 
                 # Call OpenRouter GPT-4o
                 response = await asyncio.wait_for(
@@ -160,10 +164,13 @@ class StoryGenerator:
                             {"role": "system", "content": system_instruction},
                             {"role": "user", "content": user_instruction}
                         ],
-                        temperature=0.85,
-                        max_tokens=1400,
+                        temperature=0.99,  
+                        max_tokens=2000, 
                         seed=seed,
-                        response_format={"type": "json_object"}
+                        response_format={"type": "json_object"},
+                        top_p = 0.95,
+                        frequency_penalty = 0.8,  
+                        presence_penalty = 0.8   
                     ),
                     timeout = 25.0
                 )
@@ -262,37 +269,22 @@ class StoryGenerator:
     
     def _enhance_character_design(self, story_data: dict, child_name: Optional[str]) -> dict:
         """
-        Ensure character_design has ALL required details for consistency.
+        Ensure character_design has details, but NEVER override character type.
+        
+        CRITICAL: If LLM says "dragon", keep it as dragon. Don't convert to "child".
         """
         char_design = story_data.get("character_design", "")
         
-        # Check critical keywords
-        required_keywords = {
-            "age": ["year", "yo", "old"],
-            "hair": ["hair"],
-            "eyes": ["eyes", "eye"],
-            "outfit": ["outfit", "clothes", "clothing", "dress", "shirt", "wearing"],
-            "skin": ["skin", "complexion"]
-        }
-        
-        missing = []
-        for category, keywords in required_keywords.items():
-            if not any(kw in char_design. lower() for kw in keywords):
-                missing.append(category)
-        
-        # If missing > 2 keywords → enhance
-        if len(missing) > 2:
-            logger.warning(f"⚠️ character_design incomplete (missing:  {missing}), enhancing...")
+        # ✅ ONLY enhance if completely empty or too short
+        if not char_design or len(char_design) < 20:
+            logger.warning(f"⚠️ character_design too short ({len(char_design)} chars), using fallback")
             
-            default_char = (
-                f"A friendly 7-year-old child named {child_name or 'Hero'}, "
-                f"warm brown skin, curly black hair with colorful ribbon, "
-                f"wearing bright blue shirt with stars, red shorts, yellow sneakers, "
-                f"big expressive brown eyes, cheerful smile, average height"
+            # Generic fallback (NO species assumption)
+            story_data["character_design"] = (
+                f"A friendly character with colorful appearance, "
+                f"expressive eyes, cheerful personality"
             )
-            
-            story_data["character_design"] = default_char
-            logger.info(f"   → Enhanced:  {default_char[:60]}...")
+            logger.info(f"   → Enhanced: {story_data['character_design']}")
         
         return story_data
     
