@@ -211,14 +211,100 @@ async def generate_single_scene(
 # API 1: POST /generate
 # Tạo story, trả về scene 1 ngay
 # ========================================
+# ========================================
+# API 1: POST /generate
+# Tạo story, trả về scene 1 ngay
+# ========================================
 @router.post("/generate", response_model=StoryGenerationStartResponse)
 async def generate_story(request: StoryRequest):
-    """Generate complete story with images and audio."""
+    """
+    Generate complete story with images and audio.
+    
+    Supports 2 modes:
+    1. LEGACY MODE: User provides 'prompt' text
+    2. MOBILE MODE:  User provides 'character', 'place', 'adventure', 'lesson'
+    """
     
     logger.info("=" * 70)
     logger.info(f"📚 NEW STORY REQUEST")
-    logger.info(f"   Prompt: {request.prompt[:60]}...")
-    logger.info(f"   Length: {request.story_length.value} ({get_scene_count_from_length(request.story_length.value)} scenes)")
+    
+    # ========================================
+    # DETERMINE MODE & BUILD FINAL PROMPT
+    # ========================================
+    
+    # Check if mobile params provided
+    has_mobile_params = all([
+        request.character,
+        request.place,
+        request.adventure,
+        request.lesson
+    ])
+    
+    # Check if legacy prompt provided
+    has_legacy_prompt = request.prompt is not None and request.prompt.strip() != ""
+    
+    # ========================================
+    # VALIDATION:
+    # ========================================
+    if not has_mobile_params and not has_legacy_prompt:
+        logger.error("❌ Missing both prompt and mobile params")
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide either 'prompt' (legacy) OR all of ('character', 'place', 'adventure', 'lesson') (mobile mode)"
+        )
+    
+    if has_mobile_params and has_legacy_prompt:
+        logger.error("❌ Both prompt and mobile params provided")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot provide both 'prompt' and mobile params.  Choose one mode."
+        )
+    
+    # ========================================
+    # BUILD FINAL PROMPT
+    # ========================================
+    if has_mobile_params:
+        # ✅ MOBILE MODE
+        from story_generator.prompts.story_prompts import (
+            build_prompt_from_mobile_params,
+            validate_mobile_params
+        )
+        
+        # Validate mobile params
+        is_valid, error_msg = validate_mobile_params(
+            request.character,
+            request.place,
+            request.adventure,
+            request.lesson
+        )
+        
+        if not is_valid:
+            logger.error(f"❌ Mobile params validation failed: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Build prompt from mobile params
+        final_prompt = build_prompt_from_mobile_params(
+            character=request.character,
+            place=request.place,
+            adventure=request.adventure,
+            lesson=request.lesson,
+            child_name=request.child_name
+        )
+        
+        logger.info(f"   Mode:  MOBILE")
+        logger.info(f"   Character: {request.character}")
+        logger.info(f"   Place: {request.place}")
+        logger.info(f"   Adventure: {request.adventure}")
+        logger.info(f"   Lesson: {request.lesson}")
+        logger.info(f"   → Built prompt: {final_prompt}")
+    
+    else:
+        # ✅ LEGACY MODE
+        final_prompt = request.prompt. strip()
+        logger.info(f"   Mode: LEGACY")
+        logger.info(f"   Prompt: {final_prompt[: 60]}...")
+    
+    logger.info(f"   Length: {request.story_length. value} ({get_scene_count_from_length(request.story_length.value)} scenes)")
     logger.info("=" * 70)
     
     # Initialize performance tracker
@@ -231,7 +317,7 @@ async def generate_story(request: StoryRequest):
         # ========================================
         with tracker.track_step("story_text_generation", length=request.story_length.value):
             story_data = await story_gen.generate_story(
-                user_prompt=request.prompt,
+                user_prompt=final_prompt,
                 story_length=request.story_length.value,
                 story_tone=request.story_tone.value,
                 theme=request.theme.value if request.theme else None,

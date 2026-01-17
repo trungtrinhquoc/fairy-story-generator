@@ -11,7 +11,7 @@ from enum import Enum
 def to_camel(string: str) -> str:
     """Convert snake_case to camelCase"""
     components = string.split('_')
-    return components[0] + ''.join(x. title() for x in components[1:])
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class StoryStatus(str, Enum):
@@ -59,15 +59,48 @@ class Theme(str, Enum):
 # =================================
 
 class StoryRequest(BaseModel):
-    """Request model for story generation."""
+    """Request model for story generation.Supports 2 modes:
+    1.  LEGACY MODE: User provides 'prompt' text directly
+    2. MOBILE MODE: User provides 'character', 'place', 'adventure', 'lesson'
+    """
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
     
-    prompt: str = Field(
-        ...,
+    # ========================================
+    # LEGACY MODE
+    # ========================================
+    prompt: Optional[str] = Field(
+        default=None,
         min_length=10,
         max_length=500,
-        # SỬA: Mô tả và ví dụ bằng Tiếng Anh
-        description="Story prompt in English (e.g., about a robot, a fairy, etc.)",
-        examples=["Mia turns into a mermaid and hosts a tea party at the bottom of the ocean. Her guests are a polite octopus and a glowing seahorse. They drink sea-foam tea out of seashell cups while sitting on a table made of bright pink coral."]
+        description="Story prompt in English (legacy mode). e.g., 'A robot learns to make friends'",
+        examples=["Mia turns into a mermaid and hosts a tea party at the bottom of the ocean"]
+    )
+    
+    # ========================================
+    # MOBILE MODE 
+    # ========================================
+    character: Optional[str] = Field(
+        default=None,
+        description="Character name from predefined list (e.g., 'Princess', 'Dragon', 'Robot')",
+        examples=["Princess", "Alien", "Unicorn"]
+    )
+    
+    place: Optional[str] = Field(
+        default=None,
+        description="Place description from predefined list (e.g., 'In a castle', 'Under the sea')",
+        examples=["In a magical forest", "On a pirate ship", "In the clouds"]
+    )
+    
+    adventure: Optional[str] = Field(
+        default=None,
+        description="Adventure type from predefined list (e.g., 'Rescue a friend', 'Find a hidden treasure')",
+        examples=["Rescue a friend", "Learn a magic spell", "Win a magical race"]
+    )
+    
+    lesson: Optional[str] = Field(
+        default=None,
+        description="Moral lesson from predefined list (e. g., 'Always help your friends', 'Be brave')",
+        examples=["Always help your friends", "Be kind to animals", "Never give up"]
     )
     
     story_length: StoryLength = Field(
